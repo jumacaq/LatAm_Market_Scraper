@@ -61,35 +61,59 @@
 ## Project Structure
 
 ```
-job-market-intelligence/
+latam-job-intelligence/
+├── .github/
+│   └── workflows/
+│       └── scrape_daily.yml          # GitHub Actions scheduler
 ├── scrapers/
 │   ├── __init__.py
-│   ├── spiders/
-│   │   ├── linkedin_spider.py
-│   │   ├── career_sites_spider.py
-│   │   └── company_enrichment_spider.py
-│   ├── items.py
-│   ├── pipelines.py
-│   ├── middlewares.py
-│   └── settings.py
+│   ├── scrapy.cfg
+│   ├── jobscraper/
+│   │   ├── __init__.py
+│   │   ├── settings.py               # Scrapy settings
+│   │   ├── items.py                  # Data models
+│   │   ├── pipelines.py              # ETL & DB insertion
+│   │   ├── middlewares.py            # User agents, delays
+│   │   └── spiders/
+│   │       ├── __init__.py
+│   │       ├── getonboard_spider.py  # GetonBoard scraper
+│   │       ├── computrabajo_spider.py # Computrabajo scraper
+│   │       └── torre_spider.py       # Torre API integration
 ├── etl/
-│   ├── cleaners.py
-│   ├── normalizers.py
-│   └── enrichment.py
+│   ├── __init__.py
+│   ├── cleaners.py                   # Data cleaning functions
+│   ├── normalizers.py                # Standardization
+│   └── skill_extractor.py            # Extract tech skills from descriptions
 ├── database/
-│   ├── supabase_client.py
-│   └── models.py
+│   ├── __init__.py
+│   ├── supabase_client.py            # Supabase connection
+│   ├── schema.sql                    # Database schema
+│   └── queries.py                    # Common queries
 ├── analysis/
-│   ├── trend_analyzer.py
-│   └── report_generator.py
-├── notebooks/
-│   └── market_insights.ipynb
+│   ├── __init__.py
+│   ├── trend_analyzer.py             # Detect growing roles/skills
+│   └── report_generator.py           # Generate insights
+├── dashboard/
+│   ├── app.py                        # Streamlit main app
+│   ├── pages/
+│   │   ├── 1_📊_Trends.py
+│   │   ├── 2_🏢_Companies.py
+│   │   └── 3_💡_Skills.py
+│   └── utils.py                      # Dashboard utilities
 ├── config/
-│   ├── config.yaml
-│   └── keywords.json
-├── scheduler.py
-├── main.py
-└── requirements.txt
+│   ├── config.yaml                   # Configuration
+│   ├── keywords.json                 # Search keywords by sector
+│   └── countries.json                # LatAm countries focus
+├── notebooks/
+│   └── exploratory_analysis.ipynb    # Data exploration
+├── tests/
+│   ├── test_spiders.py
+│   └── test_etl.py
+├── .env.example                      # Environment variables template
+├── .gitignore
+├── requirements.txt
+├── README.md
+└── run_scraper.py                    # Main execution script
 ```
 
 ---

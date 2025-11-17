@@ -1,0 +1,60 @@
+# .github/workflows/scrape_daily.yml
+# GitHub Actions workflow for daily automated scraping (100% FREE)
+
+name: Daily Job Scraping
+
+on:
+  schedule:
+    # Run every day at 6 AM UTC (adjust for LatAm timezone)
+    - cron: '0 6 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  scrape-jobs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run scrapers
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          echo "Starting daily scraping job..."
+          python run_scraper.py
+      
+      - name: Generate daily report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          echo "Generating insights report..."
+          python analysis/report_generator.py
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Scraping job failed! Check logs."
+          # You can add Slack/Discord webhook notification here

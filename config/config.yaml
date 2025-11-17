@@ -1,0 +1,60 @@
+CONFIG_YAML = """
+# MVP Configuration
+mvp:
+  target_records: 500
+  daily_run: true
+  countries:
+    - Mexico
+    - Colombia
+    - Argentina
+    - Chile
+    - Peru
+    - Brazil
+  
+sectors:
+  edtech:
+    keywords:
+      - "educational technology"
+      - "e-learning"
+      - "learning platform"
+      - "edtech"
+  
+  fintech:
+    keywords:
+      - "fintech"
+      - "financial technology"
+      - "payment"
+      - "banking"
+      - "blockchain"
+  
+  future_of_work:
+    keywords:
+      - "remote work"
+      - "collaboration"
+      - "productivity"
+      - "automation"
+
+roles:
+  - "Software Engineer"
+  - "Data Scientist"
+  - "Product Manager"
+  - "DevOps Engineer"
+  - "Full Stack Developer"
+  - "Backend Developer"
+  - "Frontend Developer"
+  - "ML Engineer"
+
+tech_skills:
+  - Python
+  - JavaScript
+  - React
+  - Node.js
+  - AWS
+  - Docker
+  - Kubernetes
+  - SQL
+  - MongoDB
+  - Machine Learning
+  - Data Analysis
+"""
+
