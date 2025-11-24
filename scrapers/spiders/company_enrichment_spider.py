@@ -9,12 +9,10 @@ class CompanyEnrichmentSpider(scrapy.Spider):
 
     def start_requests(self):
         for company in self.companies:
-            # Mocking enrichment request
             yield scrapy.Request(
                 f"https://www.google.com/search?q={company}", 
                 callback=self.parse
             )
 
     def parse(self, response):
-        # Placeholder for enrichment logic
         pass

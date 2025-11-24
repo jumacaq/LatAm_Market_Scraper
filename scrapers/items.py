@@ -11,4 +11,4 @@ class JobItem(scrapy.Item):
     sector = scrapy.Field()
     seniority = scrapy.Field()
     skills = scrapy.Field()
-    company_data = scrapy.Field() # Enriched data
+    company_data = scrapy.Field()

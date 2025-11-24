@@ -1,7 +1,7 @@
 @echo off
 title Market Scraper Dashboard
 echo ===================================================
-echo   JOB MARKET INTELLIGENCE - DASHBOARD LAUNCHER
+echo   JOB MARKET INTELLIGENCE - DASHBOARD
 echo ===================================================
 echo.
 echo [PASO 1] Verificando e instalando dependencias...
@@ -12,10 +12,4 @@ echo [PASO 2] Iniciando Dashboard...
 echo Si el navegador no se abre, ve a: http://localhost:8501
 echo.
 python -m streamlit run dashboard.py
-
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Ocurrio un error al iniciar.
-    echo Verifica que Python este instalado y las credenciales en .env sean correctas.
-)
 pause

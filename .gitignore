@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# Scrapy
+.scrapy/
+httpcache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+scraper.log
+
+# Data
+*.csv
+*.json
+data/
+
+# OS
+.DS_Store
+Thumbs.db

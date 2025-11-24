@@ -2,21 +2,27 @@ BOT_NAME = "market_scraper"
 SPIDER_MODULES = ["scrapers.spiders"]
 NEWSPIDER_MODULE = "scrapers.spiders"
 
-# IMPORTANT for scraping job sites:
 ROBOTSTXT_OBEY = False 
-CONCURRENT_REQUESTS = 1 # Very low concurrency to avoid bans
-DOWNLOAD_DELAY = 5 # Increased delay to 5s to be very polite
-RANDOMIZE_DOWNLOAD_DELAY = True
-COOKIES_ENABLED = True # Essential for session persistence
 
-# Headers default (will be overwritten by middleware)
-DEFAULT_REQUEST_HEADERS = {
-   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-   'Accept-Language': 'es',
-}
+# --- ANTI-BLOCKING SETTINGS (HUMANIZACIÓN) ---
+# Reducir concurrencia para no saturar al servidor (Evitar 429)
+CONCURRENT_REQUESTS = 1
+
+# Retardo MUY significativo entre peticiones para evitar bloqueo de LinkedIn
+# 10 segundos es lento, pero seguro.
+DOWNLOAD_DELAY = 10
+RANDOMIZE_DOWNLOAD_DELAY = True
+
+# AutoThrottle: Ajusta velocidad según latencia del servidor
+AUTOTHROTTLE_ENABLED = True
+AUTOTHROTTLE_START_DELAY = 10
+AUTOTHROTTLE_MAX_DELAY = 60
+AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+
+COOKIES_ENABLED = True
 
 DOWNLOADER_MIDDLEWARES = {
-    'scrapers.middlewares.RotateUserAgentMiddleware': 543,
+    'scrapers.middlewares.RotateUserAgentMiddleware': 400,
 }
 
 ITEM_PIPELINES = {

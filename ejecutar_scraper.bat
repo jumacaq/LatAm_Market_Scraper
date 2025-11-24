@@ -1,6 +1,6 @@
 @echo off
-echo Iniciando Scrapers (LinkedIn, Computrabajo, Multitrabajo)...
-python main.py scrape
+echo Iniciando Scraper de LinkedIn...
+python main.py
 echo.
 echo Proceso terminado.
 pause

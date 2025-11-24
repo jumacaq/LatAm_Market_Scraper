@@ -7,7 +7,8 @@ logging.basicConfig(filename='scheduler.log', level=logging.INFO)
 
 def job_scrape():
     logging.info("Starting scheduled scrape...")
-    subprocess.run(["python", "main.py", "scrape"])
+    # Defaulting to a safe location for scheduled runs
+    subprocess.run(["python", "main.py", "scrape", "--country", "Ecuador"])
 
 def job_enrich():
     logging.info("Starting scheduled enrichment...")

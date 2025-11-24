@@ -7,7 +7,7 @@ create table if not exists jobs (
   company text,
   location text,
   description text,
-  url text unique,
+  url text unique,  -- URL única para evitar duplicados
   source text,
   posted_date date,
   sector text,
@@ -17,7 +17,5 @@ create table if not exists jobs (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- 2. IMPORTANTE: Desactivar RLS (Row Level Security)
--- Esto es CRÍTICO. Si no ejecutas esto, el scraper NO podrá guardar datos 
--- y el dashboard mostrará siempre "No hay datos".
+-- 2. IMPORTANTE: Desactivar RLS (Row Level Security) para permitir escritura simple
 alter table jobs disable row level security;
