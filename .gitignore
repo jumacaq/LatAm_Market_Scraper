@@ -35,3 +35,6 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+scrapers/jobscraper_temp_backup/
+

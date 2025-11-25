@@ -150,9 +150,11 @@ class SectorClassificationPipeline:
     
     def classify_sector(self, item):
         """Classify job into a sector"""
-        text = (item.get('title', '') + ' ' + 
-                item.get('description', '') + ' ' + 
-                item.get('company_name', '')).lower()
+        text = (
+            str(item.get('title') or '') + ' ' + 
+            str(item.get('description') or '') + ' ' + 
+            str(item.get('company_name') or '')
+        ).lower()
         
         for sector, keywords in self.SECTOR_KEYWORDS.items():
             if any(keyword in text for keyword in keywords):
@@ -206,7 +208,7 @@ class SupabasePipeline:
             }
             
             # Upsert job (insert or update if exists)
-            response = self.client.table('jobs').upsert(job_data, on_conflict='job_id, source_platform').execute()
+            response = self.client.table('jobs').upsert(job_data).execute()
             
             # Insert skills
             if item.get('skills') and response.data:

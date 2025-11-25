@@ -12,29 +12,28 @@ class GetonBoardSpider(scrapy.Spider):
     
     # Start URLs for different countries and sectors
     start_urls = [
-        # Mexico
-        'https://www.getonbrd.com/jobs/programming/mexico',
-        'https://www.getonbrd.com/jobs/data-science/mexico',
-        # Chile
-        'https://www.getonbrd.com/jobs/programming/chile',
-        'https://www.getonbrd.com/jobs/data-science/chile',
-        # Colombia
-        'https://www.getonbrd.com/jobs/programming/colombia',
-        # Argentina
-        'https://www.getonbrd.com/jobs/programming/argentina',
-        # Remote LatAm
-        'https://www.getonbrd.com/jobs/programming/remote-latam',
+    'https://www.getonbrd.com/empleos',
+    'https://www.getonbrd.com/empleos?country=MX',  # Mexico
+    'https://www.getonbrd.com/empleos?country=CL',  # Chile
+    'https://www.getonbrd.com/empleos?country=CO',  # Colombia
+    'https://www.getonbrd.com/empleos?country=AR',  # Argentina
     ]
     
     def parse(self, response):
         """Parse job listing page"""
-        # Extract job cards
-        job_cards = response.css('div.gb-results__item')
+        all_links = response.css('a::attr(href)').getall()
+        #links = response.css('a[href*="/empleos/programacion/"]::attr(href)').getall()
+        self.logger.info(f"🔍 Encontrados {len(all_links)} links")
+    
+        # Filtrar solo links de trabajos (no categorías)
+        job_links = [l for l in all_links if '/empleos/' in l and l.count('/') >= 4]
+        unique_links = list(set(job_links))
         
-        for card in job_cards:
-            job_url = card.css('a.gb-results__item-link::attr(href)').get()
-            if job_url:
-                yield response.follow(job_url, callback=self.parse_job)
+        self.logger.info(f"🔍 Encontrados {len(unique_links)} trabajos únicos")
+
+        for link in unique_links:
+            yield response.follow(link, callback=self.parse_job)
+    
         
         # Follow pagination
         next_page = response.css('a.pagination__next::attr(href)').get()
@@ -44,47 +43,66 @@ class GetonBoardSpider(scrapy.Spider):
     def parse_job(self, response):
         """Parse individual job page"""
         item = JobItem()
-        
-        # Basic info
+    
         item['title'] = response.css('h1.gb-landing-cover__title::text').get()
-        item['company_name'] = response.css('a.gb-landing-cover__company::text').get()
-        
-        # Location
-        location = response.css('span.gb-landing-cover__location::text').get()
-        item['location'] = location.strip() if location else None
-        
-        # Job type (Remote, Onsite, Hybrid)
-        modality = response.css('li:contains("Modalidad") span::text').get()
-        if modality:
-            item['job_type'] = 'Remote' if 'remoto' in modality.lower() else 'Onsite'
-        
-        # Seniority
-        seniority = response.css('li:contains("Seniority") span::text').get()
-        item['seniority_level'] = self.normalize_seniority(seniority)
-        
-        # Description
-        description = response.css('div.gb-markdown-content').get()
-        item['description'] = description
-        
-        # Requirements (usually in a separate section)
-        requirements = response.css('div.gb-markdown-content ul').getall()
-        item['requirements'] = ' '.join(requirements) if requirements else None
-        
-        # Salary (if available)
-        salary = response.css('li:contains("Compensación") span::text').get()
-        item['salary_range'] = salary.strip() if salary else None
-        
-        # Posted date
-        posted = response.css('time::attr(datetime)').get()
-        if posted:
-            item['posted_date'] = posted.split('T')[0]  # Extract date only
-        
-        # Metadata
+        item['company_name'] = response.css('span[itemprop="hiringOrganization"]::text').get()
+        item['location'] = response.css('span[itemprop="address"]::text').get()
+        item['description'] = response.css('div.gb-landing-section').get()
         item['source_url'] = response.url
         item['source_platform'] = 'GetonBoard'
-        item['job_id'] = self.extract_job_id(response.url)
+        item['scraped_at'] = datetime.now().isoformat()
+    
+        # ✅ Solo yield si tiene título Y descripción
+        if item.get('title') and item.get('description'):
+            yield item
+        else:
+            self.logger.warning(f"⚠️ Saltado (datos incompletos): {response.url}")
+    #def parse_job(self, response):
+        #"""Parse individual job page"""
+        #item = JobItem()
         
-        yield item
+        # Basic info
+        #item['title'] = response.css('h1.gb-landing-cover__title::text').get()
+        #item['company_name'] = response.css('a.gb-landing-cover__company::text').get()
+        
+        # Location
+        #location = response.css('span.gb-landing-cover__location::text').get()
+        #item['location'] = location.strip() if location else None
+        
+        # Job type (Remote, Onsite, Hybrid)
+        #modality = response.css('li:contains("Modalidad") span::text').get()
+        #if modality:
+            #item['job_type'] = 'Remote' if 'remoto' in modality.lower() else 'Onsite'
+        
+        # Seniority
+        #seniority = response.css('li:contains("Seniority") span::text').get()
+        #item['seniority_level'] = self.normalize_seniority(seniority)
+        
+        # Description
+        #description = response.css('div.gb-markdown-content').get()
+        #item['description'] = description
+        
+        # Requirements (usually in a separate section)
+        #requirements = response.css('div.gb-markdown-content ul').getall()
+        #item['requirements'] = ' '.join(requirements) if requirements else None
+        
+        # Salary (if available)
+        #salary = response.css('li:contains("Compensación") span::text').get()
+        #item['salary_range'] = salary.strip() if salary else None
+        
+        # Posted date
+        #posted = response.css('time::attr(datetime)').get()
+        #if posted:
+            #item['posted_date'] = posted.split('T')[0]  # Extract date only
+        
+        # Metadata
+        #item['source_url'] = response.url
+        #item['source_platform'] = 'GetonBoard'
+        #item['job_id'] = self.extract_job_id(response.url)
+        #item['scraped_at'] = datetime.now().isoformat()
+        #item['country'] = self.extract_country_from_url(response.url)
+    
+        #yield item
     
     @staticmethod
     def extract_job_id(url):
@@ -109,3 +127,19 @@ class GetonBoardSpider(scrapy.Spider):
             return 'Lead'
         else:
             return 'Mid'
+        
+    
+    @staticmethod
+    def extract_country_from_url(url):
+        """Extract country from URL"""
+        if '/mexico' in url:
+            return 'Mexico'
+        elif '/chile' in url:
+            return 'Chile'
+        elif '/colombia' in url:
+            return 'Colombia'
+        elif '/argentina' in url:
+            return 'Argentina'
+        elif '/remote-latam' in url:
+            return 'Remote LatAm'
+        return None
