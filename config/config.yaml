@@ -1,2 +1,164 @@
+# FILE: job-market-intelligence/config/config.yaml
 app:
-  name: "Market Scraper"
+  name: "LatAm Job Market Intelligence"
+
+# Configuración de MVP (valores de LatAm_Market_Scraper)
+mvp:
+  target_records: 500
+  daily_run: true
+  # Los países principales para el MVP, ahora gestionados por geo.py y main.py
+  # countries:
+  #   - Mexico
+  #   - Colombia
+  #   - Argentina
+  #   - Chile
+  #   - Peru
+  #   - Brazil
+
+# Definición de Sectores y sus palabras clave (usadas en SectorClassificationPipeline)
+sectors:
+  edtech:
+    keywords:
+      - "educational technology"
+      - "e-learning"
+      - "learning platform"
+      - "edtech"
+      - "educación"
+      - "enseñanza"
+  
+  fintech:
+    keywords:
+      - "fintech"
+      - "financial technology"
+      - "payment"
+      - "banking"
+      - "blockchain"
+      - "finanzas"
+      - "criptomonedas"
+  
+  future_of_work:
+    keywords:
+      - "remote work"
+      - "collaboration"
+      - "productivity"
+      - "automation"
+      - "futuro del trabajo"
+      - "trabajo remoto"
+      - "flexibilidad"
+  
+  # Puedes añadir más sectores aquí
+  healthtech:
+    keywords:
+      - "healthtech"
+      - "salud digital"
+      - "telemedicina"
+      - "healthcare technology"
+  e_commerce:
+    keywords:
+      - "e-commerce"
+      - "retail online"
+      - "marketplace"
+      - "comercio electrónico"
+
+# Roles principales de búsqueda (usados por los spiders como palabras clave)
+roles:
+  - "Software Engineer"
+  - "Desarrollador"
+  - "Data Scientist"
+  - "Product Manager"
+  - "DevOps Engineer"
+  - "Full Stack Developer"
+  - "Backend Developer"
+  - "Frontend Developer"
+  - "ML Engineer"
+  - "Analista de Datos"
+  - "QA Engineer"
+  - "Scrum Master"
+
+# Habilidades técnicas para extracción (usadas en SkillExtractionPipeline)
+tech_skills:
+  # Lenguajes de Programación
+  - Python
+  - JavaScript
+  - Java
+  - C++
+  - C#
+  - Ruby
+  - PHP
+  - Go
+  - Rust
+  - Swift
+  - Kotlin
+  - TypeScript
+  - R
+  - Scala
+  - Perl
+
+  # Frameworks & Librerías
+  - React
+  - Angular
+  - Vue.js
+  - Node.js
+  - Django
+  - Flask
+  - FastAPI
+  - Spring Boot
+  - Express.js
+  - Next.js
+  - React Native
+  - Flutter
+  - .NET
+
+  # Bases de Datos
+  - SQL
+  - MySQL
+  - PostgreSQL
+  - MongoDB
+  - Redis
+  - Cassandra
+  - DynamoDB
+  - Oracle
+  - SQL Server
+
+  # Cloud & DevOps
+  - AWS
+  - Azure
+  - GCP
+  - Docker
+  - Kubernetes
+  - Jenkins
+  - GitLab CI
+  - Terraform
+  - Ansible
+  - CI/CD
+
+  # Data & AI
+  - Machine Learning
+  - Deep Learning
+  - TensorFlow
+  - PyTorch
+  - Pandas
+  - NumPy
+  - Scikit-learn
+  - Power BI
+  - Tableau
+  - Data Analysis
+  - Spark
+  - Hadoop
+  - Kafka
+
+  # Otros
+  - Git
+  - Linux
+  - REST API
+  - GraphQL
+  - Microservices
+  - Agile
+  - Scrum
+  - Figma
+  - UX/UI
+  - Jira
+  - Confluence
+  - Salesforce
+  - SAP
+  - ERP

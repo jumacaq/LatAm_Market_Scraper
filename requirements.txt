@@ -1,12 +1,34 @@
-# FILE: job-market-intelligence - copia - copia - copia/requirements.txt
+# FILE: job-market-intelligence/requirements.txt
+# Scraping
 scrapy>=2.11.0
-pandas>=2.1.0
-streamlit>=1.28.0
-supabase>=2.0.0
-google-generativeai>=0.3.0
+beautifulsoup4>=4.12.2 # Necesario para etl/cleaners.py (lxml es un parser más rápido)
+selenium>=4.15.2
+requests>=2.31.0
+webdriver-manager>=4.0.1 # Para Selenium, aunque no se usa en los spiders actuales. Mantenido por si acaso.
+lxml>=4.9.3 # Parser para BeautifulSoup, más rápido.
+fake-useragent>=1.4.0 # Para middlewares.py
+
+# Database
+supabase>=2.3.0
 python-dotenv>=1.0.0
+
+# Data Processing & Analysis
+pandas>=2.1.4
+numpy>=1.26.2
 plotly>=5.18.0
+scikit-learn>=1.3.2 # Mantenido si hay planes de ML futuro
+pyyaml>=6.0.1 # Para cargar config.yaml
+python-dateutil>=2.8.2 # Útil para manejo de fechas
+
+# Dashboard
+streamlit>=1.29.0
+
+# AI/Generative Models
+google-generativeai>=0.3.0
+
+# Scheduling (si se usa scheduler.py)
 schedule>=1.2.1
+
+# Excel (si se usa para reportes específicos)
 openpyxl>=3.1.2
-beautifulsoup4>=4.12.0 # Añadido para procesar HTML en limpiadores
 xlsxwriter>=1.4.0
