@@ -9,6 +9,7 @@ import logging
 from dotenv import load_dotenv
 from database.supabase_client import SupabaseClient
 from analysis.report_generator import ReportGenerator
+from analysis.trend_analyzer import TrendAnalyzer # Importar TrendAnalyzer
 import datetime
 from config.geo import COMMON_GEO_DATA
 from io import BytesIO
@@ -64,11 +65,11 @@ with st.sidebar:
     # Inputs para el scraper
     st.subheader("Configuración del Scraper")
     
-    available_spider_names = ["linkedin", "getonboard", "computrabajo", "torre"]
+    available_spider_names = ["linkedin", "computrabajo"] 
     selected_spiders_scrape = st.multiselect(
         "Scrapers a Ejecutar",
         options=available_spider_names,
-        default=["linkedin"],
+        default=["linkedin"], 
         help="Selecciona uno o más scrapers para ejecutar."
     )
 
@@ -177,19 +178,47 @@ with st.sidebar:
                     st.error(f"Error ejecutando el scraper: {e}")
 
     st.markdown("---")
+    st.subheader("📈 Generar Análisis de Tendencias")
+    st.write("Calcula métricas de tendencias (habilidades, roles, etc.) y las almacena en la base de datos.")
+    if st.button("✨ Ejecutar Análisis de Tendencias", type="secondary", width='stretch', key='run_trend_analysis_btn'):
+        with st.spinner("Analizando tendencias y almacenando en Supabase..."):
+            try:
+                # Llamar a main.py con el argumento --analyze-trends
+                result = subprocess.run(
+                    ["python", "main.py", "--analyze-trends"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if result.returncode == 0:
+                    st.success("✅ Análisis de tendencias finalizado y almacenado.")
+                    st.info("Refresca el dashboard para ver las nuevas visualizaciones de tendencias.")
+                    with st.expander("Ver Logs del Análisis"):
+                        st.code(result.stdout + result.stderr)
+                    st.cache_data.clear()
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("❌ Error al ejecutar el análisis de tendencias.")
+                    st.text_area("Log de Error del Análisis", result.stderr, height=200)
+            except Exception as e:
+                st.error(f"Error ejecutando el análisis de tendencias: {e}")
+
+
+    st.markdown("---")
     st.subheader("⚠️ Mantenimiento de Datos")
 
     if st.button("🗑️ Limpiar Base de Datos", type="secondary", width='stretch', key="clear_db_only_btn"):
         st.session_state['confirm_clear_only_db'] = True 
 
     if 'confirm_clear_only_db' in st.session_state and st.session_state['confirm_clear_only_db']:
-        st.warning("¿Estás seguro de que quieres ELIMINAR TODOS los datos de las tablas 'jobs' y 'skills'? Esta acción es irreversible.")
+        st.warning("¿Estás seguro de que quieres ELIMINAR TODOS los datos de las tablas 'jobs', 'skills', 'companies' y 'trends'? Esta acción es irreversible.")
         st.info("⚠️ Asegúrate de que tu clave de Supabase tenga **permisos de `delete`** y que no haya políticas de RLS que impidan la eliminación.")
         col_confirm_yes_clear, col_confirm_no_clear = st.columns(2)
         if col_confirm_yes_clear.button("Sí, Eliminar Datos", key="confirm_clear_yes_action"):
             db_client_for_clear = SupabaseClient()
-            if db_client_for_clear.clear_jobs_table():
-                st.success("✅ Base de datos (tablas 'jobs' y 'skills') limpiada exitosamente.")
+            if db_client_for_clear.clear_jobs_table(): # Este método ahora limpia más tablas
+                st.success("✅ Base de datos (tablas 'jobs', 'skills', 'companies', 'trends') limpiada exitosamente.")
                 st.session_state['confirm_clear_only_db'] = False
                 st.cache_data.clear()
                 time.sleep(1)
@@ -229,50 +258,61 @@ if filter_start_date > filter_end_date:
     
 # --- DATA LOADING ---
 df = pd.DataFrame()
+df_trends = pd.DataFrame()
 
 @st.cache_data(ttl=3600)
 def load_data_from_supabase():
     try:
         db = SupabaseClient()
-        response = db.get_jobs(limit=None)
-        jobs = response.data if response and response.data else []
+        response_jobs = db.get_jobs(limit=None)
+        jobs = response_jobs.data if response_jobs and response_jobs.data else []
+        
+        response_trends = db.get_trends(limit=None)
+        trends_data = response_trends.data if response_trends and response_trends.data else []
+
+        df_loaded_jobs = pd.DataFrame()
         if jobs:
-            df_loaded = pd.DataFrame(jobs)
-            
+            df_loaded_jobs = pd.DataFrame(jobs)
             date_cols = ['posted_date', 'scraped_at']
             for col in date_cols:
-                if col in df_loaded.columns:
-                    temp_series = pd.to_datetime(df_loaded[col], errors='coerce')
-                    
+                if col in df_loaded_jobs.columns:
+                    temp_series = pd.to_datetime(df_loaded_jobs[col], errors='coerce')
                     if pd.api.types.is_datetime64_any_dtype(temp_series) and temp_series.dt.tz is not None:
-                        df_loaded[col] = temp_series.dt.tz_localize(None)
+                        df_loaded_jobs[col] = temp_series.dt.tz_localize(None)
                     else:
-                        df_loaded[col] = temp_series
+                        df_loaded_jobs[col] = temp_series
             
-            if 'scraped_at' in df_loaded.columns:
-                df_loaded = df_loaded.sort_values('scraped_at', ascending=False)
-            elif 'posted_date' in df_loaded.columns:
-                df_loaded = df_loaded.sort_values('posted_date', ascending=False)
+            if 'scraped_at' in df_loaded_jobs.columns:
+                df_loaded_jobs = df_loaded_jobs.sort_values('scraped_at', ascending=False)
+            elif 'posted_date' in df_loaded_jobs.columns:
+                df_loaded_jobs = df_loaded_jobs.sort_values('posted_date', ascending=False)
             
-            if 'sector' in df_loaded.columns:
-                df_loaded['sector'] = df_loaded['sector'].apply(lambda x: x if isinstance(x, str) else str(x))
+            if 'sector' in df_loaded_jobs.columns:
+                df_loaded_jobs['sector'] = df_loaded_jobs['sector'].apply(lambda x: x if isinstance(x, str) else str(x))
             
-            if 'location' in df_loaded.columns:
-                df_loaded['location'] = df_loaded['location'].astype(str)
+            if 'location' in df_loaded_jobs.columns:
+                df_loaded_jobs['location'] = df_loaded_jobs['location'].astype(str)
 
-            if 'company_name' in df_loaded.columns:
-                df_loaded['company_name'] = df_loaded['company_name'].astype(str)
+            if 'company_name' in df_loaded_jobs.columns:
+                df_loaded_jobs['company_name'] = df_loaded_jobs['company_name'].astype(str)
             else:
-                 df_loaded['company_name'] = "Empresa Desconocida"
+                 df_loaded_jobs['company_name'] = "Empresa Desconocida"
+        
+        df_loaded_trends = pd.DataFrame()
+        if trends_data:
+            df_loaded_trends = pd.DataFrame(trends_data)
+            if 'date' in df_loaded_trends.columns:
+                df_loaded_trends['date'] = pd.to_datetime(df_loaded_trends['date'], errors='coerce')
+            df_loaded_trends = df_loaded_trends.sort_values('date', ascending=False)
 
-            return df_loaded
-        return pd.DataFrame()
+
+        return df_loaded_jobs, df_loaded_trends
     except Exception as e:
         st.error(f"❌ Error al conectar o cargar datos de Supabase: {e}")
-        st.info("Asegúrate de que tus credenciales de Supabase estén correctas y la tabla `jobs` exista y tenga datos.")
-        return pd.DataFrame()
+        st.info("Asegúrate de que tus credenciales de Supabase estén correctas y las tablas existan y tengan datos.")
+        return pd.DataFrame(), pd.DataFrame()
 
-df = load_data_from_supabase()
+df, df_trends = load_data_from_supabase()
 
 # --- APLICAR FILTROS (ahora las variables ya están definidas) ---
 filtered_df = df.copy()
@@ -299,6 +339,17 @@ if not filtered_df.empty:
             (filtered_df['posted_date'].dt.date >= filter_start_date) & 
             (filtered_df['posted_date'].dt.date <= filter_end_date)
         ]
+
+# También filtrar las tendencias si se aplica un filtro de país/continente
+filtered_df_trends = df_trends.copy()
+if not filtered_df_trends.empty:
+    # Filtrar por fecha solo si la métrica de tendencia no es específica de fecha (e.g. "most_demanded_skill" siempre es para un día de análisis)
+    # Por ahora, las tendencias están atadas a una `date` específica de análisis.
+    # Podríamos filtrar para mostrar solo las tendencias del día más reciente.
+    if 'date' in filtered_df_trends.columns and not filtered_df_trends['date'].empty:
+        # Mostrar solo las tendencias del día de análisis más reciente para simplificar
+        latest_analysis_date = filtered_df_trends['date'].max().date()
+        filtered_df_trends = filtered_df_trends[filtered_df_trends['date'].dt.date == latest_analysis_date]
 
 
 # --- MAIN DASHBOARD CONTENT ---
@@ -369,11 +420,14 @@ else:
     st.markdown("---")
     st.header("📊 Análisis de Tendencias y Distribución")
 
-    tab_sector, tab_company, tab_location, tab_date, tab_raw_data = st.tabs([
+    tab_sector, tab_company, tab_location, tab_date, tab_skills, tab_roles, tab_growing_skills, tab_raw_data = st.tabs([
         "Vacantes por Sector", 
         "Vacantes por Empresa", 
         "Vacantes por Ubicación", 
-        "Vacantes por Fecha", 
+        "Vacantes por Fecha",
+        "Habilidades Demandadas", # Nueva pestaña
+        "Roles Demandados",      # Nueva pestaña
+        "Habilidades en Crecimiento", # Nueva pestaña
         "Datos Crudos"
     ])
 
@@ -437,22 +491,77 @@ else:
         else:
             st.info("No hay datos de fecha de publicación disponibles para mostrar tendencias.")
 
+    with tab_skills: # Nueva pestaña para habilidades demandadas
+        st.subheader("Habilidades Más Demandadas (Basado en el último análisis)")
+        if not filtered_df_trends.empty:
+            most_demanded_skills_df = filtered_df_trends[filtered_df_trends['metric_name'] == 'most_demanded_skill'].sort_values('count', ascending=False)
+            if not most_demanded_skills_df.empty:
+                fig_demanded_skills = px.bar(most_demanded_skills_df.head(15), x='count', y='metric_value', orientation='h',
+                                            title='Top 15 Habilidades Más Demandadas', color='count',
+                                            labels={'count': 'Número de Vacantes', 'metric_value': 'Habilidad'},
+                                            color_continuous_scale=px.colors.sequential.Blues)
+                fig_demanded_skills.update_layout(yaxis={'categoryorder':'total ascending'})
+                st.plotly_chart(fig_demanded_skills, width='stretch')
+            else:
+                st.info("No hay datos de tendencias de habilidades demandadas. Ejecuta el análisis de tendencias.")
+        else:
+            st.info("No hay datos de tendencias disponibles. Ejecuta el análisis de tendencias.")
+
+    with tab_growing_skills: # Nueva pestaña para habilidades en crecimiento
+        st.subheader("Habilidades en Crecimiento (Basado en el último análisis)")
+        if not filtered_df_trends.empty:
+            growing_skills_df = filtered_df_trends[filtered_df_trends['metric_name'] == 'growing_skill'].sort_values('count', ascending=False)
+            if not growing_skills_df.empty:
+                fig_growing_skills = px.bar(growing_skills_df.head(15), x='count', y='metric_value', orientation='h',
+                                            title='Top 15 Habilidades en Crecimiento (Último Mes vs. Anterior)', color='count',
+                                            labels={'count': 'Vacantes Actuales', 'metric_value': 'Habilidad (Tasa de Crecimiento)'},
+                                            color_continuous_scale=px.colors.sequential.Greens)
+                fig_growing_skills.update_layout(yaxis={'categoryorder':'total ascending'})
+                st.plotly_chart(fig_growing_skills, width='stretch')
+            else:
+                st.info("No hay datos de tendencias de habilidades en crecimiento. Ejecuta el análisis de tendencias.")
+        else:
+            st.info("No hay datos de tendencias disponibles. Ejecuta el análisis de tendencias.")
+
+    with tab_roles: # Nueva pestaña para roles demandados
+        st.subheader("Roles Más Demandados (Basado en el último análisis)")
+        if not filtered_df_trends.empty:
+            most_demanded_roles_df = filtered_df_trends[filtered_df_trends['metric_name'] == 'most_demanded_role'].sort_values('count', ascending=False)
+            if not most_demanded_roles_df.empty:
+                fig_demanded_roles = px.bar(most_demanded_roles_df.head(15), x='count', y='metric_value', orientation='h',
+                                            title='Top 15 Roles Más Demandados', color='count',
+                                            labels={'count': 'Número de Vacantes', 'metric_value': 'Rol'},
+                                            color_continuous_scale=px.colors.sequential.Oranges)
+                fig_demanded_roles.update_layout(yaxis={'categoryorder':'total ascending'})
+                st.plotly_chart(fig_demanded_roles, width='stretch')
+            else:
+                st.info("No hay datos de tendencias de roles demandados. Ejecuta el análisis de tendencias.")
+        else:
+            st.info("No hay datos de tendencias disponibles. Ejecuta el análisis de tendencias.")
+
     with tab_raw_data:
         st.subheader("Datos Crudos de Vacantes")
         display_columns_for_dataframe = ['job_id', 'title', 'company_name', 'location', 'country', 'job_type', 
                                          'seniority_level', 'sector', 'posted_date', 'source_platform', 'source_url', 'scraped_at']
         
-        # FIX: Corregir NameError: 'display_df' is not defined
         existing_display_columns = [col for col in display_columns_for_dataframe if col in filtered_df.columns]
         
         st.dataframe(filtered_df[existing_display_columns], width='stretch')
+
+        st.markdown("---")
+        st.subheader("Datos Crudos de Tendencias")
+        if not filtered_df_trends.empty:
+            st.dataframe(filtered_df_trends, width='stretch')
+        else:
+            st.info("No hay datos de tendencias disponibles en la base de datos.")
+
 
         st.markdown("---")
         st.header("⬇️ Descargar Datos")
         if not filtered_df.empty:
             csv_file = filtered_df[existing_display_columns].to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="Descargar datos como CSV",
+                label="Descargar datos de Vacantes como CSV",
                 data=csv_file,
                 file_name="job_market_data.csv",
                 mime="text/csv",
@@ -464,11 +573,21 @@ else:
                 filtered_df[existing_display_columns].to_excel(writer, index=False, sheet_name='Job Data')
             excel_buffer.seek(0)
             st.download_button(
-                label="Descargar datos como Excel",
+                label="Descargar datos de Vacantes como Excel",
                 data=excel_buffer,
                 file_name="job_market_data.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="download_excel_tab"
             )
         else:
-            st.info("No hay datos para descargar.")
+            st.info("No hay datos de vacantes para descargar.")
+        
+        if not filtered_df_trends.empty:
+            csv_file_trends = filtered_df_trends.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Descargar datos de Tendencias como CSV",
+                data=csv_file_trends,
+                file_name="job_trends_data.csv",
+                mime="text/csv",
+                key="download_csv_trends_tab"
+            )

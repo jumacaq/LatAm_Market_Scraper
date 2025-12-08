@@ -1,3 +1,4 @@
+# FILE: job-market-intelligence/scrapers/spiders/computrabajo_spider.py
 import scrapy
 import datetime
 import re
@@ -5,10 +6,9 @@ import logging
 import urllib.parse
 from scrapy.exceptions import CloseSpider
 # Importar errores de Twisted y HttpError de Scrapy middleware para manejo de errback
-# Estas son las importaciones correctas para Scrapy 2.13.4
 from twisted.internet.error import DNSLookupError, TimeoutError, TCPTimedOutError
 from scrapy.spidermiddlewares.httperror import HttpError 
-from dateutil import parser as dateparser
+from dateutil import parser as dateparser # dateparser es para parsear fechas de texto flexible
 import yaml
 import os
 
@@ -198,27 +198,39 @@ class ComputrabajoSpider(scrapy.Spider):
 
         item["title"] = response.css("h1::text").get(default='').strip()
 
-        # START: Extracción de nombre de empresa (basado en tu versión "original")
-        # Se ha reincorporado la lista exacta de selectores de tu archivo original.
-        # La depuración (DEBUG log) ayudará a entender qué selector está funcionando.
+        # START: Refined Extracción de nombre de empresa
+        # Reordenar y refinar selectores para priorizar los más específicos y fiables.
         company_name_selectors = [
+            # 1. strong tag directamente dentro de p.title-company (más común y fiable)
             "p.title-company strong::text",
+            # 2. strong tag dentro de un enlace con id 'verempresa'
             "a#verempresa strong::text",
+            # 3. Texto directamente dentro de un enlace con id 'verempresa' (cuando no hay strong)
             "a#verempresa::text",
+            # 4. Span con clase específica para nombre de empresa (visto en algunas variaciones)
             "span.v_offer_em__name::text",
+            # 5. Texto de enlace directo dentro de p.title-company
             "p.title-company a::text",
-            "p.title-company a strong::text",
+            # 6. strong tag dentro del primer hijo de una estructura div.box_border .mbB (a veces se usa)
             "div.box_border .mbB:first-child strong::text",
+            # 7. Texto directo en span sin clase dentro de p.title-company (para casos simples)
+            "p.title-company > span:not([class])::text",
+            # --- Selectores de respaldo o más generales (menos específicos) ---
+            # 8. Contenido de texto general dentro de p.title-company (puede capturar ruido)
+            "//p[@class='title-company']//text()[normalize-space()]",
+            # 9. Texto que sigue a un strong 'Empresa:' (para layouts con etiquetas explícitas)
+            "//strong[contains(text(), 'Empresa:')]/following-sibling::span[1]/text()",
+            # 10. Texto de p.title-company que sigue a un h2 en div.v_offer
             "div.v_offer h2 + p.title-company::text",
             "div.v_offer h2 + p strong::text",
-            "p.title-company > span:not([class])::text",
-            "//strong[contains(text(), 'Empresa:')]/following-sibling::span[1]/text()",
-            "//p[@class='title-company']//text()[normalize-space()]", # General dentro de p.title-company
+            # 11. strong text en el primer párrafo dentro de info_items (puede ser genérico)
             "//div[@class='info_items']//p[1]//strong/text()",
+            # 12. Texto siguiendo a encabezados h2/h3 que contienen 'Empresa'
             "//h2[contains(., 'Empresa')]/following-sibling::p[1]//text()",
             "//h3[contains(., 'Empresa')]/following-sibling::p[1]//text()",
-            "//div[contains(@class, 'company')]//text()[normalize-space()]", # General en divs con 'company'
-            "//div[@class='v_offer']//p[not(contains(@class, 'title'))]/strong/text()", # En la sección v_offer
+            # 13. Último recurso: texto dentro de cualquier div que contenga 'company' (muy propenso a ruido)
+            "//div[contains(@class, 'company')]//text()[normalize-space()]",
+            "//div[@class='v_offer']//p[not(contains(@class, 'title'))]/strong/text()",
         ]
 
         raw_company_name = ''
@@ -230,32 +242,50 @@ class ComputrabajoSpider(scrapy.Spider):
                 extracted_name = response.css(selector).get()
             
             if extracted_name and extracted_name.strip():
-                raw_company_name = extracted_name.strip()
+                # Limpieza inicial para normalizar el nombre antes de validarlo
+                clean_extracted_name = re.sub(r'^(Empresa:|Compañía:|Company:)\s*', '', extracted_name, flags=re.IGNORECASE).strip()
+                clean_extracted_name = re.sub(r'\s+', ' ', clean_extracted_name).strip()
+                
+                # Descartar patrones que claramente no son nombres de empresa
+                if re.search(r'^(vacante|empleo|puesto)\s+(de|para)\s+', clean_extracted_name.lower()):
+                    self.logger.debug(f"❌ Computrabajo: Selector #{idx+1} capturó texto de vacante: '{clean_extracted_name}'. Descartando.")
+                    continue
+                
+                raw_company_name = clean_extracted_name
                 self.logger.debug(f"✅ Computrabajo: Empresa capturada con selector #{idx+1} ('{selector}'): '{raw_company_name}'")
                 break # Salir del bucle una vez que se encuentra un nombre válido
             else:
                 self.logger.debug(f"❌ Computrabajo: Selector #{idx+1} ('{selector}') no encontró empresa.")
         
-        # Lógica de limpieza y clasificación como "Empresa Confidencial"
+        # Lógica de limpieza y clasificación como "Empresa Confidencial" (mejorada)
         if raw_company_name:
+            # Re-ejecutar limpieza final para asegurar formato consistente
             raw_company_name = re.sub(r'^(Empresa:|Compañía:|Company:)\s*', '', raw_company_name, flags=re.IGNORECASE).strip()
             raw_company_name = re.sub(r'\s+', ' ', raw_company_name).strip()
 
+        # Ampliar la lista de nombres genéricos para capturar más ruido
         generic_names = [
             "lo mejor", "empresa", "confidencial", "importante empresa",
             "salario", "empresa confidencial", "compañía", "company",
             "empresa líder", "reconocida empresa", "importante compañía",
-            "", "n/a", "no especificado"
+            "ver ofertas", "más ofertas", "ver más", "ver empleo", # Textos de navegación/CTA
+            "la empresa", "no especificado", "consultora", "agencia", "staffing",
+            "búsqueda", "reclutamiento", "servicios", "solicita", # Términos genéricos de RRHH
+            "puesto", "vacante", "trabajo", "job", # Cosas que no son nombres de empresa
+            "a convenir", "a definir", "n/a", "no aplica", "n/e", "na", # Valores nulos o indefinidos
+            "huzzle.com", "nuval", "decodes" # Añadidos ejemplos específicos del error reportado
         ]
+        # Usar un set para una búsqueda más rápida
+        generic_names_set = {name.lower() for name in generic_names}
 
-        # Si después de la limpieza y la búsqueda el nombre sigue siendo genérico o vacío
-        if not raw_company_name or raw_company_name.lower() in generic_names or len(raw_company_name) < 2:
+        # Si el nombre sigue siendo genérico, muy corto o vacío después de todos los intentos
+        if not raw_company_name or raw_company_name.lower() in generic_names_set or len(raw_company_name) < 3: # Aumentar longitud mínima a 3
             item["company_name"] = "Empresa Confidencial"
-            self.logger.info(f"⚠️ Computrabajo: Compañía genérica o vacía ('{raw_company_name}') para: '{item.get('title')}' (URL: {response.url}). Asignado 'Empresa Confidencial'.")
+            self.logger.info(f"⚠️ Computrabajo: Compañía genérica, muy corta o vacía ('{raw_company_name}') para: '{item.get('title')}' (URL: {response.url}). Asignado 'Empresa Confidencial'.")
         else:
             item["company_name"] = raw_company_name
             self.logger.info(f"✓ Computrabajo: Empresa encontrada y validada para '{item.get('title')}': '{raw_company_name}'")
-        # END: Extracción de nombre de empresa
+        # END: Refined Extracción de nombre de empresa
         
         # El resto del código de parse_job (título, job_id, etc.) se mantiene como estaba
         item["source_platform"] = "Computrabajo"
@@ -318,7 +348,7 @@ class ComputrabajoSpider(scrapy.Spider):
         item['seniority_level'] = self._extract_seniority_level(response, item['title'])
         item['is_active'] = True
         item['skills'] = []
-        item['sector'] = response.meta['keyword_search']
+        item['sector'] = response.meta['keyword_search'] # Esto es fundamental para la clasificación por pipelines.
 
         # --- FILTRO: Verificar que la vacante contenga palabras clave tecnológicas ---
         combined_text = (item.get('title', '') + ' ' +

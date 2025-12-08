@@ -1,7 +1,6 @@
 # FILE: job-market-intelligence/scrapers/pipelines.py
 import re
 import hashlib
-# MODIFICACIÓN: Importar el módulo datetime completo
 import datetime
 import os
 from dotenv import load_dotenv
@@ -26,13 +25,13 @@ class CleaningPipeline:
         item['title'] = self.cleaner.clean_title(item.get('title'))
         item['company_name'] = self.cleaner.clean_whitespace(item.get('company_name'))
         item['description'] = self.cleaner.process_text(item.get('description'))
-        item['requirements'] = self.cleaner.process_text(item.get('requirements'))
+        item['requirements'] = self.cleaner.process_text(item.get('requirements')) # Asegurar limpieza de requisitos
 
         if not item.get('job_id'):
             unique_string = f"{item.get('title', '')}{item.get('company_name', '')}{item.get('source_url', '')}"
             item['job_id'] = hashlib.md5(unique_string.encode()).hexdigest()
 
-        item['scraped_at'] = datetime.datetime.now().isoformat() # FIX
+        item['scraped_at'] = datetime.datetime.now().isoformat()
         
         if not item.get('company_name'):
             item['company_name'] = "Empresa Desconocida"
@@ -53,7 +52,8 @@ class NormalizationPipeline:
 
         if item.get('posted_date') and isinstance(item['posted_date'], str):
             try:
-                item['posted_date'] = datetime.datetime.strptime(item['posted_date'], '%Y-%m-%d').date().isoformat() # FIX
+                # Asegurarse de que el formato sea solo fecha (YYYY-MM-DD) para la base de datos
+                item['posted_date'] = datetime.datetime.strptime(item['posted_date'], '%Y-%m-%d').date().isoformat()
             except ValueError:
                 item['posted_date'] = None
                 spider.logger.warning(f"No se pudo parsear posted_date en NormalizationPipeline para '{item.get('title')}': {item['posted_date']}")
@@ -67,6 +67,7 @@ class SkillExtractionPipeline:
         logging.info("Pipeline de Extracción de Habilidades inicializado.")
 
     def process_item(self, item, spider):
+        # Combina descripción y requisitos para una extracción de habilidades más completa
         description_and_requirements = (item.get('description', '') or '') + ' ' + (item.get('requirements', '') or '')
         item['skills'] = self.skill_extractor.extract_skills(description_and_requirements)
         return item
@@ -102,16 +103,47 @@ class SupabasePipeline:
             return item
 
         try:
-            job_data = {k: v for k, v in dict(item).items() if v is not None}
+            # 1. Preparar y upsertar la compañía
+            company_name = item.get('company_name', 'Empresa Desconocida')
+            company_data = {
+                'name': company_name,
+                # Campos de enriquecimiento de compañía (por ahora, dejamos nulos o los que se puedan extraer de forma básica)
+                'industry': item.get('sector', None), # Usar el sector de la vacante como industria inicial de la empresa
+                'country': item.get('country', None), # Usar el país de la vacante como país inicial de la empresa
+                'website': None, # Esto requeriría enriquecimiento externo
+                'description': None, # Esto requeriría enriquecimiento externo
+                'size': None, # Esto requeriría enriquecimiento externo
+            }
+            company_response = self.client.upsert_company(company_data)
             
-            skills_to_insert = job_data.pop('skills', [])
+            db_company_id = None
+            if company_response and company_response.data:
+                db_company_id = company_response.data[0]['id']
+            else:
+                logging.warning(f"⚠️ No se pudo upsertar la compañía '{company_name}' o no se recibió ID de respuesta. Response: {company_response}")
+                # Si no hay ID de compañía, la vacante no se enlazará correctamente, pero aún se puede guardar.
 
+            # 2. Preparar datos de la vacante
+            job_data = {k: v for k, v in dict(item).items() if v is not None}
+            job_data['company_id'] = db_company_id # Enlazar con el ID de la compañía
+            
+            # Eliminar 'company_name' de job_data si 'company_id' ya está presente
+            # (ya que la tabla 'jobs' tiene 'company_name' pero también 'company_id' como FK)
+            # Aunque tu esquema tiene 'company_name' directamente en 'jobs', no 'company_id'.
+            # Si quieres una relación estricta, el esquema de 'jobs' debería tener 'company_id' REFERENCES companies(id).
+            # Por ahora, mantendré 'company_name' en jobs y lo usaré para el upsert de compañías.
+            # Si el esquema fuera 'jobs(company_id UUID REFERENCES companies(id))', quitaría 'company_name' de job_data.
+
+            skills_to_insert = job_data.pop('skills', []) # Las habilidades se insertan por separado
+
+            # 3. Upsertar la vacante
             response = self.client.upsert_job(job_data)
             
             if response and response.data:
                 db_job_id = response.data[0]['id']
                 
-                if skills_to_insert:
+                # 4. Insertar habilidades (si hay y se obtuvo job_id)
+                if skills_to_insert and db_job_id:
                     skill_records = []
                     for skill_name in skills_to_insert:
                         skill_records.append({

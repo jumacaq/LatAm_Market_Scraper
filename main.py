@@ -1,4 +1,3 @@
-# FILE: job-market-intelligence/main.py
 import logging
 import sys
 import os
@@ -11,14 +10,16 @@ from scrapy.utils.project import get_project_settings
 
 # Importamos los spiders
 from scrapers.spiders.linkedin_spider import LinkedInSpider
-from scrapers.spiders.getonboard_spider import GetonBoardSpider
 from scrapers.spiders.computrabajo_spider import ComputrabajoSpider
-from scrapers.spiders.torre_spider import TorreSpider
+
+# Importamos el TrendAnalyzer
+from analysis.trend_analyzer import TrendAnalyzer
 
 from config.geo import COMMON_GEO_DATA, LINKEDIN_TPR_MAP, COMPUTRABAJO_FTP_MAP
 
 # Cargar variables de entorno explícitamente
 load_dotenv()
+# Configuramos logging para que los mensajes de DEBUG de los spiders no se muestren por defecto
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_config():
@@ -43,14 +44,14 @@ def get_search_keywords(config):
 
 def get_spider_selection():
     """Pregunta al usuario qué spiders desea ejecutar."""
-    available_spider_names = ["linkedin", "getonboard", "computrabajo", "torre"]
+    available_spider_names = ["linkedin", "computrabajo"] # Solo los spiders restantes
     
     print("\n--- Selección de Scrapers ---")
     print("Selecciona los scrapers que deseas ejecutar (separados por comas):")
     for i, name in enumerate(available_spider_names):
         print(f"{i+1}. {name.capitalize()}")
-    print("Ej. 1,3 para LinkedIn y Computrabajo")
-    print("Ej. 1,2,3,4 para todos")
+    print("Ej. 1,2 para LinkedIn y Computrabajo")
+    print("Ej. 1 para solo LinkedIn")
 
     while True:
         choice_input = input("Ingresa los números de los scrapers: ").strip()
@@ -181,7 +182,6 @@ def derive_linkedin_tpr(start_date_filter, end_date_filter):
         logging.warning("⚠️ Rango de fechas amplio para LinkedIn, utilizando filtro 'último mes' en la búsqueda inicial. El filtrado exacto se hará en el dashboard.")
         return LINKEDIN_TPR_MAP["past month"]
 
-# MODIFICACIÓN: Lógica de f_tp de Computrabajo mejorada
 def derive_computrabajo_ftp(start_date_filter, end_date_filter):
     """Deriva el f_tp de Computrabajo a partir de las fechas de inicio y fin, de forma más precisa."""
     if not start_date_filter or not end_date_filter:
@@ -211,8 +211,6 @@ def run_scrapers(selected_spider_names, search_keywords, target_locations, start
     if not supabase_url or "TU_PROYECTO" in supabase_url or not supabase_service_key:
         logging.warning("⚠️ ADVERTENCIA: Credenciales de Supabase (URL o SERVICE_KEY) no configuradas en .env. Los datos NO se guardarán.")
     
-    logging.info("🚀 Starting Job Market Intelligence Scrapers...")
-    
     os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'scrapers.settings')
     settings = get_project_settings()
     process = CrawlerProcess(settings)
@@ -229,18 +227,12 @@ def run_scrapers(selected_spider_names, search_keywords, target_locations, start
         linkedin_tpr = derive_linkedin_tpr(start_date_filter, end_date_filter)
         process.crawl(LinkedInSpider, **spider_kwargs, f_tpr_value=linkedin_tpr)
     
-    if "getonboard" in selected_spider_names:
-        process.crawl(GetonBoardSpider, **spider_kwargs)
-    
     if "computrabajo" in selected_spider_names:
         computrabajo_ftp = derive_computrabajo_ftp(start_date_filter, end_date_filter)
         process.crawl(ComputrabajoSpider, **spider_kwargs, f_tp_value=computrabajo_ftp)
 
-    if "torre" in selected_spider_names:
-        process.crawl(TorreSpider, **spider_kwargs)
-
     if not selected_spider_names:
-        logging.warning("No se seleccionó ningún scraper para ejecutar.")
+        logging.warning("No se seleccionó ningún scraper válido para ejecutar.")
         return
 
     process.start()
@@ -256,10 +248,20 @@ if __name__ == "__main__":
     parser.add_argument("--country", type=str, help="País específico a buscar (ej. Mexico). Usa 'Todos los Países' para todos en el continente.")
     parser.add_argument("--spiders", type=str, help="Spiders a ejecutar, separados por comas (ej. linkedin,computrabajo)")
     parser.add_argument("--max_jobs", type=int, default=None, help="Número máximo de vacantes a raspar por cada scraper (por defecto: modo interactivo).")
+    # NUEVO ARGUMENTO: Para análisis de tendencias
+    parser.add_argument("--analyze-trends", action="store_true", help="Ejecuta el análisis de tendencias y las almacena en la base de datos.")
+    parser.add_argument("--analysis-date", type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(), help="Fecha para la que se realiza el análisis de tendencias (YYYY-MM-DD, por defecto hoy).")
     
     args = parser.parse_args()
 
-    if len(sys.argv) > 1:
+    if args.analyze_trends:
+        print("Iniciando análisis de tendencias...")
+        analyzer = TrendAnalyzer()
+        analyzer.analyze_and_store_trends(analysis_date=args.analysis_date)
+        print("Análisis de tendencias completado y almacenado.")
+        sys.exit(0) # Salir después del análisis de tendencias
+    
+    if len(sys.argv) > 1 and not args.analyze_trends: # Si hay argumentos pero no es el de analizar tendencias
         # Modo CLI (se pasaron argumentos)
         target_locations_for_spider = []
         
@@ -280,13 +282,13 @@ if __name__ == "__main__":
         selected_spiders_cli = []
         if args.spiders:
             selected_spiders_cli = [s.strip().lower() for s in args.spiders.split(',')]
-            valid_spider_names = ["linkedin", "getonboard", "computrabajo", "torre"]
+            valid_spider_names = ["linkedin", "computrabajo"] 
             selected_spiders_cli = [s for s in selected_spiders_cli if s in valid_spider_names]
             if not selected_spiders_cli:
                 logging.warning("No se encontraron spiders válidos en el argumento --spiders. No se ejecutará ningún scraper.")
         else:
-            logging.info("No se especificaron spiders vía CLI. Ejecutando todos los spiders por defecto.")
-            selected_spiders_cli = ["linkedin", "getonboard", "computrabajo", "torre"]
+            logging.info("No se especificaron spiders vía CLI. Ejecutando LinkedIn y Computrabajo por defecto.")
+            selected_spiders_cli = ["linkedin", "computrabajo"]
 
         max_jobs_cli = args.max_jobs if args.max_jobs is not None else 100 
         if max_jobs_cli <= 0:
@@ -295,6 +297,8 @@ if __name__ == "__main__":
 
         run_scrapers(selected_spiders_cli, search_keywords, target_locations_for_spider, args.start_date, args.end_date, max_jobs_cli)
     else:
-        selected_spider_names = get_spider_selection()
+        # Modo interactivo sin argumentos CLI
+        print("Iniciando Scraper...") # MENSAJE DE INICIO GENERAL
+        selected_spider_names = get_spider_selection() # LLAMADA A LA SELECCIÓN INTERACTIVA DE SPIDERS
         selected_countries_list, start_date_filter, end_date_filter, max_jobs_to_scrape = get_interactive_input(config)
         run_scrapers(selected_spider_names, search_keywords, selected_countries_list, start_date_filter, end_date_filter, max_jobs_to_scrape)
