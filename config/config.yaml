@@ -1,0 +1,28 @@
+# config/config.yaml
+tech_skills:
+  - Python
+  - JavaScript
+  - React
+  - SQL
+  - AWS
+  - Docker
+  - Scrum
+  - TypeScript
+  - Node.js
+  - Kubernetes
+  - Terraform
+  - CI/CD
+  - MongoDB
+  - Redis
+  - Kanban
+  - Agile
+  - Git
+  - APIs & Microservices
+  - Testing (Unit, Integration)
+  - Cybersecurity Fundamentals
+   - APIs & Microservices
+  - Testing (Unit, Integration)
+  - Cybersecurity Fundamentals
+  - Power BI
+  - Tableau
+  - ETL
