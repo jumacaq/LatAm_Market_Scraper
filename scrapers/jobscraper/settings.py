@@ -43,9 +43,3 @@ HTTPCACHE_EXPIRATION_SECS = 0
 HTTPCACHE_DIR = 'httpcache'
 
 
-#print("✅ Scrapy items and pipelines ready!")
-#print("\nPipeline flow:")
-#print("1. CleaningPipeline: Cleans and normalizes text")
-#print("2. SkillExtractionPipeline: Extracts tech skills")
-#print("3. SectorClassificationPipeline: Classifies into EdTech/Fintech/Future of Work")
-#print("4. SupabasePipeline: Stores in database with relationships")

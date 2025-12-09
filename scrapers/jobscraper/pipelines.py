@@ -11,76 +11,144 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class CleaningPipeline:
-    """Clean and normalize raw scraped data"""
+#class CleaningPipeline:
+    #"""Clean and normalize raw scraped data"""
     
-    def process_item(self, item, spider):
+    #def process_item(self, item, spider):
         # Clean title
-        if item.get('title'):
-            item['title'] = self.clean_text(item['title'])
+        #if item.get('title'):
+            #item['title'] = self.clean_text(item['title'])
         
         # Clean company name
-        if item.get('company_name'):
-            item['company_name'] = self.clean_text(item['company_name'])
+        #if item.get('company_name'):
+            #item['company_name'] = self.clean_text(item['company_name'])
         
         # Clean description
-        if item.get('description'):
-            item['description'] = self.clean_html(item['description'])
+        #if item.get('description'):
+            #item['description'] = self.clean_html(item['description'])
         
         # Normalize location
-        if item.get('location'):
-            item['country'] = self.extract_country(item['location'])
+        #if item.get('location'):
+            #item['country'] = self.extract_country(item['location'])
         
         # Add scraped timestamp
-        item['scraped_at'] = datetime.now().isoformat()
+        #item['scraped_at'] = datetime.now().isoformat()
         
         # Generate unique job_id if not provided
-        if not item.get('job_id'):
-            item['job_id'] = self.generate_job_id(item)
+        #if not item.get('job_id'):
+            #item['job_id'] = self.generate_job_id(item)
         
+        #return item
+    
+    #@staticmethod
+    #def clean_text(text):
+        #"""Remove extra whitespace and special characters"""
+        #if not text:
+            #return ""
+        #text = re.sub(r'\s+', ' ', text)  # Multiple spaces to single
+        #text = text.strip()
+        #return text
+    
+    #@staticmethod
+    #def clean_html(html_text):
+        #"""Remove HTML tags"""
+        #if not html_text:
+            #return ""
+        #c#lean = re.sub(r'<[^>]+>', '', html_text)
+        #return CleaningPipeline.clean_text(clean)
+    
+    #@staticmethod
+    #def extract_country(location):
+       # """Extract country from location string"""
+        #countries = {
+            #'Mexico': ['mexico', 'cdmx', 'ciudad de mexico', 'guadalajara', 'monterrey'],
+            #'Colombia': ['colombia', 'bogota', 'medellin', 'cali'],
+            #'Argentina': ['argentina', 'buenos aires', 'cordoba', 'rosario'],
+            #'Chile': ['chile', 'santiago', 'valparaiso'],
+           # 'Peru': ['peru', 'lima', 'arequipa'],
+            #'Brazil': ['brazil', 'brasil', 'sao paulo', 'rio de janeiro'],
+            #'Ecuador': ['ecuador', 'quito', 'guayaquil'],
+        #}
+        
+        #location_lower = location.lower()
+        #for country, keywords in countries.items():
+            #if any(keyword in location_lower for keyword in keywords):
+                #return country
+        
+        #return None
+    
+    #@staticmethod
+    #def generate_job_id(item):
+       # """Generate unique ID from job attributes"""
+        #unique_string = f"{item.get('title', '')}{item.get('company_name', '')}{item.get('source_url', '')}"
+        #return hashlib.md5(unique_string.encode()).hexdigest()
+
+
+
+class CleaningPipeline:
+    """Basic cleaning & validation before inserting into Supabase.
+       Deep cleaning is performed later in ETL stage.
+    """
+
+    def process_item(self, item, spider):
+
+        # --- Normalize minimal required fields ---
+        item['title'] = self.clean_text(item.get('title'))
+        item['company_name'] = self.clean_text(item.get('company_name'))
+        item['location'] = self.clean_text(item.get('location'))
+        item['description'] = self.clean_text(item.get('description'))
+
+        # Extract country but keep raw location (ETL hará el resto)
+        item['country'] = self.extract_country(item.get('location'))
+
+        # Timestamp
+        item['scraped_at'] = datetime.now().isoformat()
+
+        # Stable job_id for deduplication
+        if not item.get("job_id"):
+            item["job_id"] = self.generate_job_id(item)
+
         return item
-    
+
+    # -------- BASIC HELPERS: no normalización avanzada aquí -------- #
     @staticmethod
-    def clean_text(text):
-        """Remove extra whitespace and special characters"""
-        if not text:
-            return ""
-        text = re.sub(r'\s+', ' ', text)  # Multiple spaces to single
-        text = text.strip()
-        return text
-    
-    @staticmethod
-    def clean_html(html_text):
-        """Remove HTML tags"""
-        if not html_text:
-            return ""
-        clean = re.sub(r'<[^>]+>', '', html_text)
-        return CleaningPipeline.clean_text(clean)
-    
+    def clean_text(t):
+        if not t:
+            return None
+        t = re.sub(r"\s+", " ", t)
+        return t.strip()
+
     @staticmethod
     def extract_country(location):
-        """Extract country from location string"""
-        countries = {
-            'Mexico': ['mexico', 'cdmx', 'ciudad de mexico', 'guadalajara', 'monterrey'],
-            'Colombia': ['colombia', 'bogota', 'medellin', 'cali'],
-            'Argentina': ['argentina', 'buenos aires', 'cordoba', 'rosario'],
-            'Chile': ['chile', 'santiago', 'valparaiso'],
-            'Peru': ['peru', 'lima', 'arequipa'],
-            'Brazil': ['brazil', 'brasil', 'sao paulo', 'rio de janeiro']
-        }
-        
+        """Lightweight country detection (ETL will refine later)."""
+        if not location:
+            return None
+
         location_lower = location.lower()
-        for country, keywords in countries.items():
-            if any(keyword in location_lower for keyword in keywords):
+
+        COUNTRY_MAP = {
+            "mexico": "Mexico",
+            "colombia": "Colombia",
+            "argentina": "Argentina",
+            "chile": "Chile",
+            "peru": "Peru",
+            "brazil": "Brazil",
+            "ecuador": "Ecuador"
+        }
+
+        for key, country in COUNTRY_MAP.items():
+            if key in location_lower:
                 return country
-        
+
         return None
-    
+
     @staticmethod
     def generate_job_id(item):
-        """Generate unique ID from job attributes"""
-        unique_string = f"{item.get('title', '')}{item.get('company_name', '')}{item.get('source_url', '')}"
-        return hashlib.md5(unique_string.encode()).hexdigest()
+        """Stable ID based on source_url (best), or fallback."""
+        base = item.get("source_url") or (
+            f"{item.get('title','')}-{item.get('company_name','')}-{item.get('location','')}"
+        )
+        return hashlib.md5(base.encode()).hexdigest()
 
 
 class SkillExtractionPipeline:
@@ -211,8 +279,8 @@ class SupabasePipeline:
             response = self.client.table('jobs').upsert(job_data).execute()
             
             # Insert skills
-            if item.get('skills') and response.data:
-                job_id = response.data[0]['id']
+            if item.get('skills'):
+                job_id = item.get('job_id')
                 for skill in item['skills']:
                     skill_data = {
                         'job_id': job_id,
