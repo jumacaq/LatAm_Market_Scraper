@@ -1,0 +1,86 @@
+# config/config.yaml - VERSIÓN FINAL
+
+# Lista de habilidades técnicas para el SkillExtractor
+tech_skills:
+  - Python
+  - JavaScript
+  - React
+  - SQL
+  - AWS
+  - Docker
+  - Scrum
+  - TypeScript
+  - Node.js
+  - Kubernetes
+  - Terraform
+  - CI/CD
+  - MongoDB
+  - Redis
+  - Kanban
+  - Agile
+  - Git
+  - APIs & Microservices
+  - Testing (Unit, Integration)
+  - Cybersecurity Fundamentals
+  - Power BI
+  - Tableau
+  - ETL
+
+# Definición de Sectores y sus palabras clave (Usado en SectorClassificationPipeline)
+sectors:
+  edtech:
+    keywords:
+      - "educational technology"
+      - "e-learning"
+      - "learning platform"
+      - "edtech"
+      - "educación"
+      - "enseñanza"
+  
+  fintech:
+    keywords:
+      - "fintech"
+      - "financial technology"
+      - "payment"
+      - "banking"
+      - "blockchain"
+      - "finanzas"
+      - "criptomonedas"
+  
+  future_of_work:
+    keywords:
+      - "remote work"
+      - "collaboration"
+      - "productivity"
+      - "automation"
+      - "futuro del trabajo"
+      - "trabajo remoto"
+      - "flexibilidad"
+  
+  healthtech:
+    keywords:
+      - "healthtech"
+      - "salud digital"
+      - "telemedicina"
+      - "healthcare technology"
+  e_commerce:
+    keywords:
+      - "e-commerce"
+      - "retail online"
+      - "marketplace"
+      - "comercio electrónico"
+
+# Roles principales de búsqueda (Usado en LinkedInSpider)
+roles:
+  - "Software Engineer"
+  - "Desarrollador"
+  - "Data Scientist"
+  - "Product Manager"
+  - "DevOps Engineer"
+  - "Full Stack Developer"
+  - "Backend Developer"
+  - "Frontend Developer"
+  - "ML Engineer"
+  - "Analista de Datos"
+  - "QA Engineer"
+  - "Scrum Master"
