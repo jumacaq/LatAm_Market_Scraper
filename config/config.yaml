@@ -1,21 +1,13 @@
-# FILE: job-market-intelligence/config/config.yaml
+# FILE: Proyecto/job-market-intelligence/config/config.yaml
 app:
   name: "LatAm Job Market Intelligence"
 
-# Configuración de MVP (valores de LatAm_Market_Scraper)
 mvp:
   target_records: 500
   daily_run: true
-  # Los países principales para el MVP, ahora gestionados por geo.py y main.py
-  # countries:
-  #   - Mexico
-  #   - Colombia
-  #   - Argentina
-  #   - Chile
-  #   - Peru
-  #   - Brazil
 
-# Definición de Sectores y sus palabras clave (usadas en SectorClassificationPipeline)
+# Definición de Sectores y sus palabras clave
+# Fusionando las keywords de todas las versiones
 sectors:
   edtech:
     keywords:
@@ -25,6 +17,8 @@ sectors:
       - "edtech"
       - "educación"
       - "enseñanza"
+      - "campus virtual"
+      - "plataforma educativa"
   
   fintech:
     keywords:
@@ -35,6 +29,8 @@ sectors:
       - "blockchain"
       - "finanzas"
       - "criptomonedas"
+      - "pagos digitales"
+      - "banca digital"
   
   future_of_work:
     keywords:
@@ -45,22 +41,28 @@ sectors:
       - "futuro del trabajo"
       - "trabajo remoto"
       - "flexibilidad"
+      - "herramientas de productividad"
   
-  # Puedes añadir más sectores aquí
   healthtech:
     keywords:
       - "healthtech"
       - "salud digital"
       - "telemedicina"
       - "healthcare technology"
+      - "ehealth"
+      - "medical tech"
+  
   e_commerce:
     keywords:
       - "e-commerce"
       - "retail online"
       - "marketplace"
       - "comercio electrónico"
+      - "tienda online"
+      - "logística e-commerce"
 
 # Roles principales de búsqueda (usados por los spiders como palabras clave)
+# Fusionando y expandiendo la lista de roles
 roles:
   - "Software Engineer"
   - "Desarrollador"
@@ -74,8 +76,15 @@ roles:
   - "Analista de Datos"
   - "QA Engineer"
   - "Scrum Master"
+  - "Data Analyst"
+  - "Tech Lead"
+  - "Cybersecurity Engineer"
+  - "UX/UI Designer"
+  - "Mobile Developer"
+  - "Architect"
 
 # Habilidades técnicas para extracción (usadas en SkillExtractionPipeline)
+# Fusionando y expandiendo la lista de habilidades
 tech_skills:
   # Lenguajes de Programación
   - Python
@@ -108,6 +117,13 @@ tech_skills:
   - React Native
   - Flutter
   - .NET
+  - Pandas
+  - NumPy
+  - Scikit-learn
+  - TensorFlow
+  - PyTorch
+  - Power BI
+  - Tableau
 
   # Bases de Datos
   - SQL
@@ -131,21 +147,17 @@ tech_skills:
   - Terraform
   - Ansible
   - CI/CD
+  - SRE
 
   # Data & AI
   - Machine Learning
   - Deep Learning
-  - TensorFlow
-  - PyTorch
-  - Pandas
-  - NumPy
-  - Scikit-learn
-  - Power BI
-  - Tableau
   - Data Analysis
   - Spark
   - Hadoop
   - Kafka
+  - ETL
+  - Big Data
 
   # Otros
   - Git
@@ -155,6 +167,7 @@ tech_skills:
   - Microservices
   - Agile
   - Scrum
+  - Kanban
   - Figma
   - UX/UI
   - Jira
@@ -162,3 +175,6 @@ tech_skills:
   - Salesforce
   - SAP
   - ERP
+  - Testing (Unit, Integration)
+  - Cybersecurity Fundamentals
+  - APIs & Microservices

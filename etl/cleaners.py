@@ -1,4 +1,4 @@
-# FILE: job-market-intelligence/etl/cleaners.py
+# FILE: Proyecto/job-market-intelligence/etl/cleaners.py
 import re
 from bs4 import BeautifulSoup
 
@@ -8,7 +8,12 @@ class TextCleaner:
         if not text:
             return ""
         # Usar BeautifulSoup para una limpieza más robusta
-        soup = BeautifulSoup(text, "lxml") # Usamos lxml para mayor eficiencia
+        # Usamos 'html.parser' como fallback si 'lxml' no está disponible o da problemas,
+        # aunque 'lxml' es más eficiente.
+        try:
+            soup = BeautifulSoup(text, "lxml") 
+        except Exception:
+            soup = BeautifulSoup(text, "html.parser")
         clean_text = soup.get_text(separator=' ', strip=True)
         return self.clean_whitespace(clean_text)
 

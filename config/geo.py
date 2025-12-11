@@ -1,4 +1,4 @@
-# FILE: job-market-intelligence/config/geo.py
+# FILE: Proyecto/job-market-intelligence/config/geo.py
 COMMON_GEO_DATA = {
     "Latam": [
         "Argentina", "Bolivia", "Brasil", "Chile", "Colombia", "Costa Rica", "Cuba",
@@ -23,8 +23,6 @@ COMMON_GEO_DATA = {
 }
 
 # Mapping date ranges to LinkedIn's f_TPR parameter
-# Note: LinkedIn's guest API doesn't support arbitrary date ranges,
-# so we map to the closest available option.
 LINKEDIN_TPR_MAP = {
     "past 24 hours": "r86400",
     "past week": "r604800",

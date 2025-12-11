@@ -1,4 +1,4 @@
-# FILE: job-market-intelligence/scrapers/settings.py
+# FILE: Proyecto/job-market-intelligence/scrapers/settings.py
 BOT_NAME = "market_scraper"
 SPIDER_MODULES = ["scrapers.spiders"]
 NEWSPIDER_MODULE = "scrapers.spiders"
@@ -9,17 +9,16 @@ NEWSPIDER_MODULE = "scrapers.spiders"
 ROBOTSTXT_OBEY = False
 
 # --- CONFIGURACIONES ANTI-BLOQUEO (HUMANIZACIÓN) ---
-# Reducir concurrencia y aumentar el retardo para no saturar al servidor (Evitar 429)
-# Estas son configuraciones generales, pueden ser sobrescritas por custom_settings en cada spider
-CONCURRENT_REQUESTS = 2 # Un poco más permisivo que 1, pero aún conservador
-DOWNLOAD_DELAY = 5    # Retardo significativo entre peticiones
+CONCURRENT_REQUESTS = 2 # Considera 1 si hay muchos bloqueos
+DOWNLOAD_DELAY = 5    # Retardo significativo entre peticiones (mínimo, puede ser mayor por AutoThrottle)
 RANDOMIZE_DOWNLOAD_DELAY = True
 
 # AutoThrottle: Ajusta la velocidad según la latencia del servidor
 AUTOTHROTTLE_ENABLED = True
 AUTOTHROTTLE_START_DELAY = 5
 AUTOTHROTTLE_MAX_DELAY = 60
-AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0 # Mantener una solicitud concurrente activa en promedio
+AUTOTHROTTLE_TARGET_CONCURRENCY = 0.5 # Mantener una solicitud concurrente activa en promedio
+AUTOTHROTTLE_DEBUG = False # Cambiar a True para ver logs de AutoThrottle
 
 COOKIES_ENABLED = True
 
@@ -36,21 +35,24 @@ DEFAULT_REQUEST_HEADERS = {
 
 DOWNLOADER_MIDDLEWARES = {
     'scrapers.middlewares.RotateUserAgentMiddleware': 400,
-    # Puedes añadir otros middlewares aquí si son necesarios
+    # Añade más middlewares si son necesarios (ej. manejo de proxy)
 }
 
+# ORDEN CRÍTICO DE LOS PIPELINES
 ITEM_PIPELINES = {
    "scrapers.pipelines.CleaningPipeline": 100,
    "scrapers.pipelines.NormalizationPipeline": 200,
-   "scrapers.pipelines.SkillExtractionPipeline": 300,
-   "scrapers.pipelines.SectorClassificationPipeline": 400,
-   "scrapers.pipelines.SupabasePipeline": 500,
+   "scrapers.pipelines.CompanyEnrichmentPipeline": 300, # Nuevo pipeline de enriquecimiento
+   "scrapers.pipelines.SkillExtractionPipeline": 400,
+   "scrapers.pipelines.SectorClassificationPipeline": 500,
+   "scrapers.pipelines.SupabasePipeline": 600, # Asegúrate de que este sea el último para la persistencia
 }
 
 # Configuración para el registro (logging)
-LOG_LEVEL = 'INFO' # Puedes cambiar a 'DEBUG' para ver más detalles durante el desarrollo
+LOG_LEVEL = 'INFO' # Mantener en INFO para producción, cambiar a DEBUG para depuración
 # LOG_FILE = 'scrapy_log.log' # Descomenta para guardar los logs en un archivo
 
 # Otros ajustes útiles:
 # RETRY_ENABLED = True
 # RETRY_TIMES = 3
+# RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 400, 403, 404, 408] # Códigos para reintentar

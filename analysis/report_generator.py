@@ -19,7 +19,7 @@ class ReportGenerator:
             data_summary += f"- {job.get('title')} en {job.get('company')} ({job.get('sector')})\n"
             
         prompt = f"""
-        Analiza estos datos recientes del mercado laboral en Latam (Fuente: LinkedIn):
+        Analiza estos datos recientes del mercado:
         {data_summary}
         
         Genera un resumen ejecutivo breve en Markdown destacando:

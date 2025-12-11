@@ -7,10 +7,12 @@ import datetime
 from dotenv import load_dotenv
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+from scrapy.utils.log import configure_logging
 
 # Importamos los spiders
 from scrapers.spiders.linkedin_spider import LinkedInSpider
 from scrapers.spiders.computrabajo_spider import ComputrabajoSpider
+# from scrapers.spiders.indeed_spider import IndeedSpider # ELIMINADO: Nuevo spider
 
 # Importamos el TrendAnalyzer
 from analysis.trend_analyzer import TrendAnalyzer
@@ -20,7 +22,10 @@ from config.geo import COMMON_GEO_DATA, LINKEDIN_TPR_MAP, COMPUTRABAJO_FTP_MAP
 # Cargar variables de entorno explícitamente
 load_dotenv()
 # Configuramos logging para que los mensajes de DEBUG de los spiders no se muestren por defecto
+# configure_logging({'LOG_LEVEL': 'INFO'}) # Scrapy tiene su propio logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('MainScript')
+
 
 def load_config():
     """Carga la configuración desde config.yaml."""
@@ -29,28 +34,29 @@ def load_config():
         with open(config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
     except FileNotFoundError:
-        logging.error(f"Error: Archivo de configuración no encontrado en {config_path}.")
+        logger.error(f"Error: Archivo de configuración no encontrado en {config_path}.")
         sys.exit(1)
     except yaml.YAMLError as e:
-        logging.error(f"Error cargando config.yaml: {e}.")
+        logger.error(f"Error cargando config.yaml: {e}.")
         sys.exit(1)
 
 def get_search_keywords(config):
-    """Obtiene las palabras clave de búsqueda (roles + keywords de sectores) de la configuración."""
+    """Obtiene las palabras clave de búsqueda (roles + keywords de sectores + tech_skills) de la configuración."""
     keywords = config.get('roles', [])
     for sector_info in config.get('sectors', {}).values():
         keywords.extend(sector_info.get('keywords', []))
+    keywords.extend(config.get('tech_skills', [])) # Añadir tech_skills también a la búsqueda
     return list(set(keywords)) # Eliminar duplicados
 
 def get_spider_selection():
     """Pregunta al usuario qué spiders desea ejecutar."""
-    available_spider_names = ["linkedin", "computrabajo"] # Solo los spiders restantes
+    available_spider_names = ["linkedin", "computrabajo"] # MODIFICADO: ELIMINADO 'indeed'
     
     print("\n--- Selección de Scrapers ---")
     print("Selecciona los scrapers que deseas ejecutar (separados por comas):")
     for i, name in enumerate(available_spider_names):
         print(f"{i+1}. {name.capitalize()}")
-    print("Ej. 1,2 para LinkedIn y Computrabajo")
+    print("Ej. 1,2 para LinkedIn y Computrabajo") # MODIFICADO: EJEMPLO
     print("Ej. 1 para solo LinkedIn")
 
     while True:
@@ -85,15 +91,17 @@ def get_interactive_input(config):
     for i, cont in enumerate(continents):
         print(f"{i+1}. {cont}")
     
-    continent_choice = None
-    while continent_choice not in range(1, len(continents) + 1):
+    selected_continent = None
+    while selected_continent not in continents:
         try:
             choice = input(f"Ingresa el número del continente (1-{len(continents)}): ")
-            continent_choice = int(choice)
+            continent_choice_idx = int(choice) - 1
+            if 0 <= continent_choice_idx < len(continents):
+                selected_continent = continents[continent_choice_idx]
+            else:
+                print(f"Número '{choice}' inválido.")
         except ValueError:
             print("Entrada inválida. Por favor, ingresa un número.")
-    
-    selected_continent = continents[continent_choice - 1]
     
     # País
     countries = COMMON_GEO_DATA[selected_continent]
@@ -102,20 +110,22 @@ def get_interactive_input(config):
         print(f"{i+1}. {country}")
     print(f"{len(countries)+1}. Todos los países en {selected_continent}")
     
-    country_choice = None
-    while country_choice not in range(1, len(countries) + 2):
+    selected_countries_list = []
+    while not selected_countries_list:
         try:
             choice = input(f"Ingresa el número del país (1-{len(countries)+1}): ")
-            country_choice = int(choice)
+            country_choice_idx = int(choice) - 1
+            
+            if country_choice_idx == len(countries): # "Todos los países"
+                selected_countries_list = COMMON_GEO_DATA[selected_continent]
+                logger.info(f"Buscando en todos los países de {selected_continent}: {', '.join(selected_countries_list)}.")
+            elif 0 <= country_choice_idx < len(countries):
+                selected_countries_list = [countries[country_choice_idx]]
+                logger.info(f"Buscando en {selected_countries_list[0]}.")
+            else:
+                print(f"Número '{choice}' inválido.")
         except ValueError:
             print("Entrada inválida. Por favor, ingresa un número.")
-            
-    if country_choice == len(countries) + 1:
-        selected_countries_list = COMMON_GEO_DATA[selected_continent]
-        logging.info(f"Buscando en todos los países de {selected_continent}: {', '.join(selected_countries_list)}.")
-    else:
-        selected_countries_list = [countries[country_choice - 1]]
-        logging.info(f"Buscando en {selected_countries_list[0]}.")
 
     # Rango de fechas
     start_date_filter = None
@@ -164,55 +174,42 @@ def get_interactive_input(config):
         except ValueError:
             print("Entrada inválida. Por favor, ingresa un número entero.")
             
-    return selected_countries_list, start_date_filter, end_date_filter, max_jobs
+    return selected_countries_list, start_date_filter, end_date_filter, max_jobs, selected_continent
 
-def derive_linkedin_tpr(start_date_filter, end_date_filter):
-    """Deriva el f_TPR de LinkedIn a partir de las fechas de inicio y fin."""
+def derive_platform_date_filter(platform_map, start_date_filter, end_date_filter):
+    """Deriva el valor de filtro de fecha para una plataforma a partir de las fechas de inicio y fin."""
     if not start_date_filter or not end_date_filter:
-        return LINKEDIN_TPR_MAP["any time"]
+        return platform_map["any time"]
     
     delta = end_date_filter - start_date_filter
-    if delta <= datetime.timedelta(days=1):
-        return LINKEDIN_TPR_MAP["past 24 hours"]
-    elif delta <= datetime.timedelta(days=7):
-        return LINKEDIN_TPR_MAP["past week"]
-    elif delta <= datetime.timedelta(days=30):
-        return LINKEDIN_TPR_MAP["past month"]
-    else:
-        logging.warning("⚠️ Rango de fechas amplio para LinkedIn, utilizando filtro 'último mes' en la búsqueda inicial. El filtrado exacto se hará en el dashboard.")
-        return LINKEDIN_TPR_MAP["past month"]
-
-def derive_computrabajo_ftp(start_date_filter, end_date_filter):
-    """Deriva el f_tp de Computrabajo a partir de las fechas de inicio y fin, de forma más precisa."""
-    if not start_date_filter or not end_date_filter:
-        return COMPUTRABAJO_FTP_MAP["any time"]
-    
-    delta = end_date_filter - start_date_filter
-    # Convertir a días para la comparación
     days_delta = delta.days
 
     if days_delta <= 1:
-        return COMPUTRABAJO_FTP_MAP["past 24 hours"]
+        return platform_map["past 24 hours"]
     elif days_delta <= 7:
-        return COMPUTRABAJO_FTP_MAP["past week"]
+        return platform_map["past week"]
     elif days_delta <= 30:
-        return COMPUTRABAJO_FTP_MAP["past month"]
+        return platform_map["past month"]
     else:
-        # Si es más de un mes, Computrabajo no tiene un filtro directo para "más antiguo que 30 días" en su URL.
-        # En este caso, lo mejor es no pasar un filtro f_tp y dejar que el filtrado se haga post-scrape.
-        logging.warning("⚠️ Rango de fechas amplio para Computrabajo, se ignorará el filtro de fecha f_tp en la URL. El filtrado exacto se hará post-scrape.")
-        return COMPUTRABAJO_FTP_MAP["any time"]
+        # Para rangos mayores a un mes, muchas plataformas no tienen un filtro directo en la URL.
+        # Es mejor no pasar un filtro y hacer el filtrado post-scrape en el pipeline.
+        logger.warning(f"⚠️ Rango de fechas amplio ({days_delta} días), se ignorará el filtro de fecha específico en la URL para esta plataforma. El filtrado exacto se hará post-scrape.")
+        return platform_map["any time"]
 
 
-def run_scrapers(selected_spider_names, search_keywords, target_locations, start_date_filter, end_date_filter, max_jobs_to_scrape):
+def run_scrapers(selected_spider_names, search_keywords, target_locations, start_date_filter, end_date_filter, max_jobs_to_scrape, continent_search=None):
     # Verificar credenciales antes de arrancar
     supabase_url = os.getenv("SUPABASE_URL", "")
     supabase_service_key = os.getenv("SUPABASE_SERVICE_KEY", "")
     if not supabase_url or "TU_PROYECTO" in supabase_url or not supabase_service_key:
-        logging.warning("⚠️ ADVERTENCIA: Credenciales de Supabase (URL o SERVICE_KEY) no configuradas en .env. Los datos NO se guardarán.")
+        logger.warning("⚠️ ADVERTENCIA: Credenciales de Supabase (URL o SERVICE_KEY) no configuradas en .env. Los datos NO se guardarán.")
     
     os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'scrapers.settings')
     settings = get_project_settings()
+    
+    # Aseguramos que el LOG_LEVEL de Scrapy sea coherente con main.py
+    settings.set('LOG_LEVEL', 'INFO', priority='cmdline')
+    
     process = CrawlerProcess(settings)
     
     spider_kwargs = {
@@ -220,22 +217,29 @@ def run_scrapers(selected_spider_names, search_keywords, target_locations, start
         'target_locations': target_locations,
         'start_date_filter': start_date_filter,
         'end_date_filter': end_date_filter,
-        'max_jobs_to_scrape': max_jobs_to_scrape
+        'max_jobs_to_scrape': max_jobs_to_scrape,
+        'continent_search': continent_search # Pasar el continente para Indeed/LinkedIn si es relevante
     }
 
     if "linkedin" in selected_spider_names:
-        linkedin_tpr = derive_linkedin_tpr(start_date_filter, end_date_filter)
+        linkedin_tpr = derive_platform_date_filter(LINKEDIN_TPR_MAP, start_date_filter, end_date_filter)
         process.crawl(LinkedInSpider, **spider_kwargs, f_tpr_value=linkedin_tpr)
     
     if "computrabajo" in selected_spider_names:
-        computrabajo_ftp = derive_computrabajo_ftp(start_date_filter, end_date_filter)
+        computrabajo_ftp = derive_platform_date_filter(COMPUTRABAJO_FTP_MAP, start_date_filter, end_date_filter)
         process.crawl(ComputrabajoSpider, **spider_kwargs, f_tp_value=computrabajo_ftp)
 
+    # ELIMINADO: if "indeed" in selected_spider_names: 
+    # ELIMINADO:     indeed_ftp = derive_platform_date_filter(COMPUTRABAJO_FTP_MAP, start_date_filter, end_date_filter) 
+    # ELIMINADO:     process.crawl(IndeedSpider, **spider_kwargs, f_tp_value=indeed_ftp)
+
     if not selected_spider_names:
-        logging.warning("No se seleccionó ningún scraper válido para ejecutar.")
+        logger.warning("No se seleccionó ningún scraper válido para ejecutar.")
         return
 
+    logger.info("Iniciando proceso de Scrapy...")
     process.start()
+    logger.info("Proceso de Scrapy finalizado.")
 
 if __name__ == "__main__":
     config = load_config()
@@ -246,9 +250,8 @@ if __name__ == "__main__":
     parser.add_argument("--end_date", type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(), help="Fecha de fin para filtrar vacantes (YYYY-MM-DD)")
     parser.add_argument("--continent", type=str, help="Continente a buscar (ej. Latam)")
     parser.add_argument("--country", type=str, help="País específico a buscar (ej. Mexico). Usa 'Todos los Países' para todos en el continente.")
-    parser.add_argument("--spiders", type=str, help="Spiders a ejecutar, separados por comas (ej. linkedin,computrabajo)")
+    parser.add_argument("--spiders", type=str, help="Spiders a ejecutar, separados por comas (ej. linkedin,computrabajo)") # MODIFICADO: EJEMPLO
     parser.add_argument("--max_jobs", type=int, default=None, help="Número máximo de vacantes a raspar por cada scraper (por defecto: modo interactivo).")
-    # NUEVO ARGUMENTO: Para análisis de tendencias
     parser.add_argument("--analyze-trends", action="store_true", help="Ejecuta el análisis de tendencias y las almacena en la base de datos.")
     parser.add_argument("--analysis-date", type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(), help="Fecha para la que se realiza el análisis de tendencias (YYYY-MM-DD, por defecto hoy).")
     
@@ -259,46 +262,54 @@ if __name__ == "__main__":
         analyzer = TrendAnalyzer()
         analyzer.analyze_and_store_trends(analysis_date=args.analysis_date)
         print("Análisis de tendencias completado y almacenado.")
-        sys.exit(0) # Salir después del análisis de tendencias
+        sys.exit(0)
     
-    if len(sys.argv) > 1 and not args.analyze_trends: # Si hay argumentos pero no es el de analizar tendencias
+    if len(sys.argv) > 1 and not args.analyze_trends:
         # Modo CLI (se pasaron argumentos)
         target_locations_for_spider = []
+        selected_continent_cli = args.continent
         
         if args.country and args.country != "Todos los Países": 
             target_locations_for_spider = [args.country]
-            logging.info(f"CLI: País único seleccionado para scraping: '{args.country}'.")
-        elif args.continent and args.continent != "Selecciona un Continente" and args.continent in COMMON_GEO_DATA:
+            logger.info(f"CLI: País único seleccionado para scraping: '{args.country}'.")
+        elif args.continent and args.continent in COMMON_GEO_DATA:
             if args.country == "Todos los Países":
                 target_locations_for_spider = COMMON_GEO_DATA[args.continent]
-                logging.info(f"CLI: Continente '{args.continent}' seleccionado para scrapear todos sus países: {', '.join(target_locations_for_spider)}")
-            else: 
+                logger.info(f"CLI: Continente '{args.continent}' seleccionado para scrapear todos sus países: {', '.join(target_locations_for_spider)}")
+            else: # Si se especificó continente pero no país, se asume todos los países del continente
                 target_locations_for_spider = COMMON_GEO_DATA[args.continent]
-                logging.info(f"CLI: Continente '{args.continent}' seleccionado; asumiendo todos sus países: {', '.join(target_locations_for_spider)}")
+                logger.info(f"CLI: Continente '{args.continent}' seleccionado; asumiendo todos sus países: {', '.join(target_locations_for_spider)}")
         else:
+            selected_continent_cli = "Latam" # Default
             target_locations_for_spider = COMMON_GEO_DATA["Latam"]
-            logging.info("CLI: No se especificó continente/país válido, o se especificó un continente inválido. Usando países predeterminados de Latam.")
+            logger.info("CLI: No se especificó continente/país válido, o se especificó un continente inválido. Usando países predeterminados de Latam.")
 
         selected_spiders_cli = []
         if args.spiders:
             selected_spiders_cli = [s.strip().lower() for s in args.spiders.split(',')]
-            valid_spider_names = ["linkedin", "computrabajo"] 
+            valid_spider_names = ["linkedin", "computrabajo"] # MODIFICADO: ELIMINADO 'indeed'
             selected_spiders_cli = [s for s in selected_spiders_cli if s in valid_spider_names]
             if not selected_spiders_cli:
-                logging.warning("No se encontraron spiders válidos en el argumento --spiders. No se ejecutará ningún scraper.")
+                logger.warning("No se encontraron spiders válidos en el argumento --spiders. No se ejecutará ningún scraper.")
         else:
-            logging.info("No se especificaron spiders vía CLI. Ejecutando LinkedIn y Computrabajo por defecto.")
-            selected_spiders_cli = ["linkedin", "computrabajo"]
+            logger.info("No se especificaron spiders vía CLI. Ejecutando LinkedIn y Computrabajo por defecto.") # MODIFICADO: EJEMPLO
+            selected_spiders_cli = ["linkedin", "computrabajo"] # MODIFICADO: ELIMINADO 'indeed'
 
         max_jobs_cli = args.max_jobs if args.max_jobs is not None else 100 
         if max_jobs_cli <= 0:
-            logging.warning(f"Límite de vacantes CLI ({max_jobs_cli}) inválido o 0. Usando 100 por defecto.")
+            logger.warning(f"Límite de vacantes CLI ({max_jobs_cli}) inválido o 0. Usando 100 por defecto.")
             max_jobs_cli = 100
 
-        run_scrapers(selected_spiders_cli, search_keywords, target_locations_for_spider, args.start_date, args.end_date, max_jobs_cli)
+        run_scrapers(selected_spiders_cli, search_keywords, target_locations_for_spider, args.start_date, args.end_date, max_jobs_cli, selected_continent_cli)
     else:
         # Modo interactivo sin argumentos CLI
-        print("Iniciando Scraper...") # MENSAJE DE INICIO GENERAL
-        selected_spider_names = get_spider_selection() # LLAMADA A LA SELECCIÓN INTERACTIVA DE SPIDERS
-        selected_countries_list, start_date_filter, end_date_filter, max_jobs_to_scrape = get_interactive_input(config)
-        run_scrapers(selected_spider_names, search_keywords, selected_countries_list, start_date_filter, end_date_filter, max_jobs_to_scrape)
+        # ELIMINADO: La lógica interactiva de selección de spiders ya está ajustada por 'get_spider_selection()'
+        # ELIMINADO: y se invocará aquí si no hay argumentos CLI.
+        selected_spiders_interactive = get_spider_selection()
+        if not selected_spiders_interactive:
+            logger.info("No se seleccionó ningún scraper en modo interactivo. Saliendo.")
+            sys.exit(0)
+        
+        selected_countries_interactive, start_date_interactive, end_date_interactive, max_jobs_interactive, selected_continent_interactive = get_interactive_input(config)
+        
+        run_scrapers(selected_spiders_interactive, search_keywords, selected_countries_interactive, start_date_interactive, end_date_interactive, max_jobs_interactive, selected_continent_interactive)
