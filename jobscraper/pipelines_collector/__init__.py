@@ -1,2 +1,0 @@
-# jobscraper/pipelines_collector/__init__.py
-from .LinkedInItemCollectorPipeline import LinkedInItemCollectorPipeline
