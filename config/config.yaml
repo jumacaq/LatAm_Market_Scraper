@@ -1,0 +1,180 @@
+# FILE: Proyecto/job-market-intelligence/config/config.yaml
+app:
+  name: "LatAm Job Market Intelligence"
+
+mvp:
+  target_records: 500
+  daily_run: true
+
+# Definición de Sectores y sus palabras clave
+# Fusionando las keywords de todas las versiones
+sectors:
+  edtech:
+    keywords:
+      - "educational technology"
+      - "e-learning"
+      - "learning platform"
+      - "edtech"
+      - "educación"
+      - "enseñanza"
+      - "campus virtual"
+      - "plataforma educativa"
+  
+  fintech:
+    keywords:
+      - "fintech"
+      - "financial technology"
+      - "payment"
+      - "banking"
+      - "blockchain"
+      - "finanzas"
+      - "criptomonedas"
+      - "pagos digitales"
+      - "banca digital"
+  
+  future_of_work:
+    keywords:
+      - "remote work"
+      - "collaboration"
+      - "productivity"
+      - "automation"
+      - "futuro del trabajo"
+      - "trabajo remoto"
+      - "flexibilidad"
+      - "herramientas de productividad"
+  
+  healthtech:
+    keywords:
+      - "healthtech"
+      - "salud digital"
+      - "telemedicina"
+      - "healthcare technology"
+      - "ehealth"
+      - "medical tech"
+  
+  e_commerce:
+    keywords:
+      - "e-commerce"
+      - "retail online"
+      - "marketplace"
+      - "comercio electrónico"
+      - "tienda online"
+      - "logística e-commerce"
+
+# Roles principales de búsqueda (usados por los spiders como palabras clave)
+# Fusionando y expandiendo la lista de roles
+roles:
+  - "Software Engineer"
+  - "Desarrollador"
+  - "Data Scientist"
+  - "Product Manager"
+  - "DevOps Engineer"
+  - "Full Stack Developer"
+  - "Backend Developer"
+  - "Frontend Developer"
+  - "ML Engineer"
+  - "Analista de Datos"
+  - "QA Engineer"
+  - "Scrum Master"
+  - "Data Analyst"
+  - "Tech Lead"
+  - "Cybersecurity Engineer"
+  - "UX/UI Designer"
+  - "Mobile Developer"
+  - "Architect"
+
+# Habilidades técnicas para extracción (usadas en SkillExtractionPipeline)
+# Fusionando y expandiendo la lista de habilidades
+tech_skills:
+  # Lenguajes de Programación
+  - Python
+  - JavaScript
+  - Java
+  - C++
+  - C#
+  - Ruby
+  - PHP
+  - Go
+  - Rust
+  - Swift
+  - Kotlin
+  - TypeScript
+  - R
+  - Scala
+  - Perl
+
+  # Frameworks & Librerías
+  - React
+  - Angular
+  - Vue.js
+  - Node.js
+  - Django
+  - Flask
+  - FastAPI
+  - Spring Boot
+  - Express.js
+  - Next.js
+  - React Native
+  - Flutter
+  - .NET
+  - Pandas
+  - NumPy
+  - Scikit-learn
+  - TensorFlow
+  - PyTorch
+  - Power BI
+  - Tableau
+
+  # Bases de Datos
+  - SQL
+  - MySQL
+  - PostgreSQL
+  - MongoDB
+  - Redis
+  - Cassandra
+  - DynamoDB
+  - Oracle
+  - SQL Server
+
+  # Cloud & DevOps
+  - AWS
+  - Azure
+  - GCP
+  - Docker
+  - Kubernetes
+  - Jenkins
+  - GitLab CI
+  - Terraform
+  - Ansible
+  - CI/CD
+  - SRE
+
+  # Data & AI
+  - Machine Learning
+  - Deep Learning
+  - Data Analysis
+  - Spark
+  - Hadoop
+  - Kafka
+  - ETL
+  - Big Data
+
+  # Otros
+  - Git
+  - Linux
+  - REST API
+  - GraphQL
+  - Microservices
+  - Agile
+  - Scrum
+  - Kanban
+  - Figma
+  - UX/UI
+  - Jira
+  - Confluence
+  - Salesforce
+  - SAP
+  - ERP
+  - Testing (Unit, Integration)
+  - Cybersecurity Fundamentals
+  - APIs & Microservices
