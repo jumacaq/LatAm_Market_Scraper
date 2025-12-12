@@ -25,37 +25,6 @@
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────┐
-│     GitHub Actions (Daily 6 AM UTC)         │
-│          Automated Scheduling               │
-└──────────────────┬──────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────┐
-│         Scrapy Spiders (3 sources)          │
-│  • GetonBoard  • Torre API  • Computrabajo  │
-└──────────────────┬──────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────┐
-│          ETL Pipeline (4 stages)            │
-│  Clean → Extract Skills → Classify → Store │
-└──────────────────┬──────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────┐
-│        Supabase (PostgreSQL)                │
-│   Tables: jobs, companies, skills, trends   │
-└──────────────────┬──────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────┐
-│    Streamlit Dashboard (Real-time)          │
-│  Visualizations, Reports, Data Export       │
-└─────────────────────────────────────────────┘
-```
-
 ---
 
 ## Project Structure
@@ -66,7 +35,7 @@ job-market-intelligence/
 │   ├── __init__.py
 │   ├── spiders/
 │   │   ├── linkedin_spider.py
-│   │   ├── career_sites_spider.py
+│   │   ├── computrabajo_spider.py
 │   │   └── company_enrichment_spider.py
 │   ├── items.py
 │   ├── pipelines.py
@@ -76,20 +45,24 @@ job-market-intelligence/
 │   ├── cleaners.py
 │   ├── normalizers.py
 │   └── enrichment.py
+|   └── sector_classifier.py
+|   └── skill_extractor.py
 ├── database/
-│   ├── supabase_client.py
-│   └── models.py
+│   ├── supabase_client.py     #Config supabase
+│   └── SQL_PARA_SUPABASE.sql  #Supabase tables structure
 ├── analysis/
 │   ├── trend_analyzer.py
 │   └── report_generator.py
 ├── notebooks/
-│   └── market_insights.ipynb
+│   └── exploratory_analysis.ipynb
 ├── config/
 │   ├── config.yaml
-│   └── keywords.json
-├── scheduler.py
+│   └── geo.py
+├── dashboard.py
 ├── main.py
 └── requirements.txt
+└── .gitignore
+└── README.md
 ```
 
 ---
@@ -99,7 +72,9 @@ job-market-intelligence/
 ### Required Accounts (All Free!)
 1. **GitHub Account** - For code hosting and automation
 2. **Supabase Account** - Database (500MB free)
-3. **Streamlit Cloud Account** - Dashboard hosting
+3. **Streamlit Cloud Account** - Dashboard hosting link:
+
+
 
 ### Local Development Requirements
 - Python 3.9 or higher
@@ -384,7 +359,7 @@ git push -u origin main
 
 ### 4. Deploy Dashboard to Streamlit Cloud
 
-1. Go to [https://streamlit.io/cloud](https://streamlit.io/cloud)
+1. Go to [Link Streamlit](https://proyecto-no-country-suy3cnnrkvzkdja5rfhovq.streamlit.app/)
 2. Sign in with GitHub
 3. Click **New app**
 4. Select:
@@ -396,7 +371,6 @@ git push -u origin main
    - `SUPABASE_KEY`
 6. Click **Deploy**
 
-**Result**: Your dashboard is live at `https://your-app.streamlit.app`
 
 ---
 
@@ -558,4 +532,4 @@ This project is for educational purposes as part of job simulation training.
 
 **Built with ❤️ for LatAm Tech Talent**
 
-Last updated: November 2025
+Last updated: December 2025
