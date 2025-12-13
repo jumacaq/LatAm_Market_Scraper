@@ -389,6 +389,8 @@ Para contribuir, sigue los pasos de un flujo de trabajo estándar de GitHub:
 8.  **Abre un Pull Request (PR):** Finalmente, ve a la página de tu fork en GitHub. Verás una opción para "Open a Pull Request". Proporciona una descripción detallada de tus cambios, el problema que resuelven o la funcionalidad que añaden. ¡Estaremos encantados de revisarlo!
 
 ---
+## Enlace del proyecto en la Nube
+[![Streamlit App](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://proyecto-no-country-suy3cnnrkvzkdja5rfhovq.streamlit.app/)
 
 ## 📄 Licencia ⚖️
 
@@ -399,4 +401,5 @@ La única condición es que se incluya el aviso de derechos de autor original y 
 Para leer el texto completo de la licencia, por favor, consulta el archivo `LICENSE` ubicado en la raíz del repositorio.
 
 ---
+
 **Desarrollado con ❤️ para empoderar el mercado laboral.**
