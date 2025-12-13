@@ -6,6 +6,7 @@ import subprocess
 import time
 import logging
 from dotenv import load_dotenv
+import sys # <--- ¡AÑADIDO! Esto es crucial.
 from database.supabase_client import SupabaseClient
 from analysis.report_generator import ReportGenerator
 from analysis.trend_analyzer import TrendAnalyzer
@@ -64,7 +65,7 @@ st.markdown("""
     }
     .stButton>button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+        box_shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
     }
     
     /* Headers con colores vibrantes */
@@ -137,7 +138,7 @@ with st.sidebar:
     def execute_scraper(selected_spiders, continent, country, start_date, end_date, max_jobs):
         env = os.environ.copy()
         
-        cmd = ["python", "main.py"]
+        cmd = [sys.executable, "main.py"] # <--- ¡CAMBIO CRÍTICO APLICADO AQUÍ!
         
         if selected_spiders:
             cmd.extend(["--spiders", ",".join(selected_spiders)])
@@ -224,7 +225,7 @@ with st.sidebar:
         with st.spinner("Analizando tendencias y almacenando en Supabase..."):
             try:
                 result = subprocess.run(
-                    ["python", "main.py", "--analyze-trends"],
+                    [sys.executable, "main.py", "--analyze-trends"], # <--- También aplicando sys.executable aquí para consistencia
                     capture_output=True,
                     text=True,
                     check=False

@@ -4,9 +4,9 @@ scrapy>=2.11.0
 beautifulsoup4>=4.12.2
 selenium>=4.15.2
 requests>=2.31.0
-webdriver-manager>=4.0.1 # Para Selenium, aunque no se usa en los spiders actuales. Mantenido por si acaso.
-lxml>=4.9.3 # Parser para BeautifulSoup, más rápido.
-fake-useragent>=1.4.0 # Para middlewares.py
+webdriver-manager>=4.0.1
+lxml>=4.9.3
+fake-useragent>=1.4.0
 
 # Database
 supabase>=2.3.0
@@ -16,15 +16,13 @@ python-dotenv>=1.0.0
 pandas>=2.1.4
 numpy>=1.26.2
 plotly>=5.18.0
-altair>=5.2.0 # Agregado para gráficos más elegantes en Streamlit
-scikit-learn>=1.3.2 # Mantenido si hay planes de ML futuro
-pyyaml>=6.0.1 # Para cargar config.yaml
-python-dateutil>=2.8.2 # Útil para manejo de fechas
-# tabulate>=0.9.0 # No es estrictamente necesario, pero útil para CLI si se usa
+altair>=5.2.0
+scikit-learn>=1.3.2
+pyyaml>=6.0.1
+python-dateutil>=2.8.2
 
 # Dashboard
 streamlit>=1.29.0
-# Se recomienda usar las versiones más recientes y compatibles de Streamlit y Altair.
 
 # AI/Generative Models
 google-generativeai>=0.3.0
@@ -36,3 +34,6 @@ schedule>=1.2.1
 openpyxl>=3.1.2
 xlsxwriter>=1.4.0
 
+# CI/CD Tools
+flake8>=6.0.0
+pytest>=7.0.0

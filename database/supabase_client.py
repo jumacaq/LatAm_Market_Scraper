@@ -3,6 +3,7 @@ import os
 from supabase import create_client, Client
 import logging
 import datetime
+import hashlib
 from typing import List, Dict, Any, Optional
 
 # Configuramos logging para esta clase
